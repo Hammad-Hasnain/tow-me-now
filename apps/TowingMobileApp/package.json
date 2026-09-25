@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "dev": "react-native start --port 8082",
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "lint": "eslint .",
@@ -14,7 +15,8 @@
     "react": "19.2.3",
     "react-native": "0.87.1",
     "react-native-linear-gradient": "^2.8.3",
-    "react-native-safe-area-context": "^5.5.2"
+    "react-native-safe-area-context": "^5.5.2",
+    "react-native-toast-message": "^2.5.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

@@ -12,16 +12,23 @@ import {
     StatusBar,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import Toast from 'react-native-toast-message';
 
 export const RegisterScreen = ({ navigation }: any) => {
     const [role, setRole] = useState<'USER' | 'DRIVER'>('USER');
     const [fullName, setFullName] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
 
-    const handleRegister = () => {
+ const handleRegister = () => {
         if (!fullName.trim() || !phoneNumber.trim()) {
-            Alert.alert('Required', 'all feilds are required');
-            return;
+            Toast.show({
+                type: 'error',
+                text1: 'Required Fields',
+                text2: 'Please fill in all required fields to continue',
+                position: 'top',
+                visibilityTime: 3000,
+            });
+            return; // Empty hone par yahan se wapas chala jayega
         }
 
         const registrationData = {
@@ -31,6 +38,13 @@ export const RegisterScreen = ({ navigation }: any) => {
         };
 
         console.log('Registering User:', registrationData);
+
+        Toast.show({
+            type: 'success',
+            text1: 'Success',
+            text2: 'Account registered successfully!',
+            position: 'top',
+        });
     };
 
     return (
