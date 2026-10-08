@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
-export default function AvailableDriversScreen({ navigation }: any) {
+export default function AvailableDriversScreen({ navigation,route }: any) {
     const driversList = [
         {
             id: '1',
@@ -32,6 +32,16 @@ export default function AvailableDriversScreen({ navigation }: any) {
             fare: 'PKR 2,800',
         },
     ];
+
+    const requestDetails = route?.params?.requestDetails;
+// 2. Individual fields destruct karein
+    const { 
+        pickup, 
+        dropoff 
+    } = requestDetails || {};
+
+    console.log("Pickup Data:", pickup?.address, pickup?.latitude, pickup?.longitude);
+    console.log("Dropoff Data:", dropoff?.address, dropoff?.latitude, dropoff?.longitude);
 
     const handleSelectDriver = (driver: any) => {
         navigation.navigate('DriverStatus', { driver });

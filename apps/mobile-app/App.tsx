@@ -30,11 +30,13 @@ import DriverHomeScreen from './src/screens/driver/DriverHomeScreen';
 import AvailableDriversScreen from './src/screens/user/AvailableDriversScreen';
 import DriverStatusScreen from './src/screens/user/DriverStatusScreen';
 import DriverEnrouteScreen from './src/screens/driver/DriverEnrouteScreen';
+import Toast from 'react-native-toast-message';
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
+    <>
     <NavigationContainer>
       <Stack.Navigator 
         initialRouteName="Login"
@@ -53,6 +55,10 @@ export default function App() {
         <Stack.Screen name="DriverEnrouteScreen" component={DriverEnrouteScreen} />
       </Stack.Navigator>
     </NavigationContainer>
+
+    
+      <Toast />
+      </>
   );
 }
 

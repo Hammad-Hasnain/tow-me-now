@@ -10,8 +10,13 @@ import {
     StatusBar,
     Platform,
     Alert,
+    PermissionsAndroid,
+    ActivityIndicator,
 } from 'react-native';
+import Geolocation from '@react-native-community/geolocation';
 import LinearGradient from 'react-native-linear-gradient';
+import Icon from 'react-native-vector-icons/Ionicons';
+import Toast from 'react-native-toast-message';
 
 export default function UserHomeScreen({ navigation }: any) {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -23,25 +28,198 @@ export default function UserHomeScreen({ navigation }: any) {
     const [currentLoc, setCurrentLoc] = useState('');
     const [dropoffLoc, setDropoffLoc] = useState('');
     const [vehicleNo, setVehicleNo] = useState('');
+    const [loadingLocation, setLoadingLocation] = useState(false);
+    const [loadingDropoff, setLoadingDropoff] = useState(false);
+
+    // Coordinates States
+    const [pickupCoords, setPickupCoords] = useState<{ lat: number; lon: number } | null>(null);
+    const [dropoffCoords, setDropoffCoords] = useState<{ lat: number; lon: number } | null>(null);
+
+    // Reverse Geocoding with Timeout Safety & English Language
+    const getAddressFromCoords = async (lat: number, lon: number) => {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 sec timeout safety
+
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=en`,
+                {
+                    headers: {
+                        'User-Agent': 'HighwayTowingApp/1.0',
+                    },
+                    signal: controller.signal,
+                }
+            );
+            clearTimeout(timeoutId);
+
+            const data = await response.json();
+            return data.display_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+        } catch (error) {
+            console.error('Geocoding error: ', error);
+            return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+        }
+    };
+
+
+    console.log(pickupCoords,"current lat lon")
+    console.log(dropoffCoords,"destination lat lon")
+
+    // Dropoff Search Handler
+    const handleSearchDropoff = async () => {
+       if (!dropoffLoc.trim()) {
+        Toast.show({
+            type: 'error',
+            text1: 'Search Input Empty ⚠️',
+            text2: 'Please enter a location name or mechanic shop name.',
+            position: 'bottom',
+        });
+        return;
+    }
+
+        setLoadingDropoff(true);
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(dropoffLoc)}&accept-language=en`,
+                {
+                    headers: {
+                        'User-Agent': 'HighwayTowingApp/1.0',
+                    },
+                    signal: controller.signal,
+                }
+            );
+            clearTimeout(timeoutId);
+
+            const data = await response.json();
+
+            if (data && data.length > 0) {
+                const topResult = data[0];
+
+                setDropoffLoc(topResult.display_name);
+                setDropoffCoords({
+                    lat: parseFloat(topResult.lat),
+                    lon: parseFloat(topResult.lon),
+                });
+
+                // SUCCESS TOAST
+            Toast.show({
+                type: 'success',
+                text1: 'Location Found',
+                text2: topResult.display_name,
+                position: 'top',
+            });
+
+            } else {
+              Toast.show({
+                type: 'error',
+                text1: 'Location Not Found',
+                text2: 'Could not find the location. Try entering a nearby landmark or city name.',
+                position: 'top',
+            });
+            }
+
+        } catch (error) {
+            console.error('Dropoff Search Error:', error);
+            Toast.show({
+            type: 'error',
+            text1: 'Search Error',
+            text2: 'Failed to fetch location. Please check your network connection.',
+            position: 'top',
+        });
+        } finally {
+            setLoadingDropoff(false);
+        }
+    };
+
+    // Android Location Permission
+    const requestLocationPermission = async () => {
+        if (Platform.OS === 'android') {
+            try {
+                const granted = await PermissionsAndroid.request(
+                    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+                    {
+                        title: 'Location Permission',
+                        message: 'This app needs access to your location for pickup.',
+                        buttonPositive: 'OK',
+                    }
+                );
+                return granted === PermissionsAndroid.RESULTS.GRANTED;
+            } catch (err) {
+                console.warn(err);
+                return false;
+            }
+        }
+        return true;
+    };
+
+    // Current Location Pickup Handler
+    const handleGetCurrentLocation = async () => {
+        const hasPermission = await requestLocationPermission();
+        if (!hasPermission) {
+            Alert.alert('Permission Denied', 'Location permission is required.');
+            return;
+        }
+
+        setLoadingLocation(true);
+
+        Geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+
+                // Save Coordinates State
+                setPickupCoords({ lat: latitude, lon: longitude });
+
+                // Fetch English Address Name
+                const address = await getAddressFromCoords(latitude, longitude);
+                setCurrentLoc(address);
+                setLoadingLocation(false);
+            },
+            (error) => {
+                setLoadingLocation(false);
+                Alert.alert('Location Error', error.message);
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+        );
+    };
 
     const handleLLMChat = () => {
         Alert.alert('AI Assistant', 'Analyzing your vehicle description for fast support...');
     };
 
+    // Navigate with Coordinates + Text Address
     const handleGetTow = () => {
         if (!currentLoc.trim() || !dropoffLoc.trim()) {
             Alert.alert('Required', 'Please enter Pick-up and Drop-off locations.');
             return;
         }
-        // Next screen pr navigate karein
+
+        const requestPayload = {
+            vehicle,
+            model,
+            problem,
+            vehicleNo,
+            pickup: {
+                address: currentLoc,
+                latitude: pickupCoords?.lat || null,
+                longitude: pickupCoords?.lon || null,
+            },
+            dropoff: {
+                address: dropoffLoc,
+                latitude: dropoffCoords?.lat || null,
+                longitude: dropoffCoords?.lon || null,
+            },
+        };
+
         navigation.navigate('AvailableDrivers', {
-            requestDetails: { vehicle, model, problem, currentLoc, dropoffLoc, vehicleNo },
+            requestDetails: requestPayload,
         });
     };
 
     return (
         <View style={{ flex: 1, backgroundColor: '#0B0F19' }}>
-              <StatusBar
+            <StatusBar
                 barStyle="light-content"
                 {...({
                     translucent: true,
@@ -128,36 +306,64 @@ export default function UserHomeScreen({ navigation }: any) {
                                 value={problem}
                                 onChangeText={setProblem}
                             />
-
+{/* 
                             <TouchableOpacity style={styles.llmBtn} onPress={handleLLMChat} activeOpacity={0.8}>
                                 <LinearGradient
                                     colors={['rgba(139, 92, 246, 0.25)', 'rgba(99, 102, 241, 0.25)']}
                                     style={styles.llmBtnGradient}>
                                     <Text style={styles.llmBtnText}>🤖 Diagnose Issue with AI Assist</Text>
                                 </LinearGradient>
-                            </TouchableOpacity>
+                            </TouchableOpacity> */}
 
                             <View style={styles.divider} />
 
                             <Text style={styles.sectionTitle}>Location Setup</Text>
 
+                            {/* PICKUP LOCATION WITH GPS BUTTON */}
                             <Text style={styles.label}>PICKUP LOCATION</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Current Location / GPS"
-                                placeholderTextColor="#64748B"
-                                value={currentLoc}
-                                onChangeText={setCurrentLoc}
-                            />
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+                                <TextInput
+                                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                                    placeholder="Current Location / GPS"
+                                    placeholderTextColor="#64748B"
+                                    value={currentLoc}
+                                    onChangeText={setCurrentLoc}
+                                />
+                                <TouchableOpacity
+                                    onPress={handleGetCurrentLocation}
+                                    disabled={loadingLocation}
+                                    style={styles.gpsBtn}>
+                                    {loadingLocation ? (
+                                        <ActivityIndicator color="#FFF" size="small" />
+                                    ) : (
+                                       
+                                       <Icon name="locate-outline" size={25} color="#dfa811" />
+                                    )}
+                                </TouchableOpacity>
+                            </View>
 
+                            {/* DESTINATION WORKSHOP WITH OSM SEARCH BUTTON */}
                             <Text style={styles.label}>DESTINATION WORKSHOP</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Dropoff Address / Mechanic Shop"
-                                placeholderTextColor="#64748B"
-                                value={dropoffLoc}
-                                onChangeText={setDropoffLoc}
-                            />
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
+                                <TextInput
+                                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                                    placeholder="Dropoff Address / Mechanic Shop"
+                                    placeholderTextColor="#64748B"
+                                    value={dropoffLoc}
+                                    onChangeText={setDropoffLoc}
+                                />
+                                <TouchableOpacity
+                                    onPress={handleSearchDropoff}
+                                    disabled={loadingDropoff}
+                                    style={styles.searchBtn}>
+                                    {loadingDropoff ? (
+                                        <ActivityIndicator color="#FFF" size="small" />
+                                    ) : (
+                                       
+                                      <Icon name="search-outline" size={25} color="#FFFFFF" />
+                                    )}
+                                </TouchableOpacity>
+                            </View>
 
                             <TouchableOpacity activeOpacity={0.85} onPress={handleGetTow} style={styles.mainBtnWrapper}>
                                 <LinearGradient
@@ -212,52 +418,99 @@ export default function UserHomeScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1 },
+    safeArea: {
+        flex: 1,
+    },
     topHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'android' ? 40 : 10,
         paddingBottom: 15,
-        paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 12 : 12,
     },
-    menuBtn: { padding: 8, justifyContent: 'center', alignItems: 'center', zIndex: 10 },
-    menuIcon: { fontSize: 26, color: '#FFFFFF' },
-    headerTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
+    menuBtn: {
+        padding: 5,
+    },
+    menuIcon: {
+        color: '#FFFFFF',
+        fontSize: 22,
+    },
+    headerTitle: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: '700',
+    },
     profileBadge: {
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: '#3730A3',
-        alignItems: 'center',
+        backgroundColor: '#6366F1',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#6366F1',
+        alignItems: 'center',
     },
-    profileBadgeText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
-    scrollContainer: { paddingHorizontal: 16, paddingBottom: 40 },
-    heroBanner: { borderRadius: 18, padding: 20, marginTop: 6, marginBottom: 16 },
+    profileBadgeText: {
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        fontSize: 14,
+    },
+    scrollContainer: {
+        paddingHorizontal: 20,
+        paddingBottom: 30,
+    },
+    heroBanner: {
+        borderRadius: 20,
+        padding: 20,
+        marginBottom: 20,
+    },
     bannerBadge: {
+        alignSelf: 'flex-start',
         backgroundColor: 'rgba(255, 255, 255, 0.2)',
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 12,
-        alignSelf: 'flex-start',
         marginBottom: 10,
     },
-    bannerBadgeText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
-    bannerTitle: { fontSize: 20, fontWeight: '800', color: '#FFFFFF', marginBottom: 6 },
-    bannerSub: { fontSize: 13, color: '#E0E7FF', lineHeight: 18 },
+    bannerBadgeText: {
+        color: '#FFFFFF',
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    bannerTitle: {
+        color: '#FFFFFF',
+        fontSize: 20,
+        fontWeight: 'bold',
+        marginBottom: 6,
+    },
+    bannerSub: {
+        color: '#E0E7FF',
+        fontSize: 12,
+        lineHeight: 18,
+    },
     card: {
-        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+        backgroundColor: 'rgba(31, 41, 55, 0.6)',
         borderRadius: 20,
-        padding: 18,
+        padding: 20,
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.08)',
     },
-    sectionTitle: { fontSize: 16, fontWeight: '700', color: '#FFFFFF', marginBottom: 12 },
-    rowInputs: { flexDirection: 'row', justifyContent: 'space-between' },
-    label: { fontSize: 10, fontWeight: '700', color: '#FFFFFF', marginBottom: 6, letterSpacing: 0.8 },
+    sectionTitle: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '700',
+        marginBottom: 14,
+    },
+    rowInputs: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    label: {
+        color: '#9CA3AF',
+        fontSize: 10,
+        fontWeight: '700',
+        letterSpacing: 1,
+        marginBottom: 6,
+    },
     input: {
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
         borderWidth: 1,
@@ -269,28 +522,118 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         marginBottom: 14,
     },
-    divider: { height: 1, backgroundColor: 'rgba(255, 255, 255, 0.08)', marginVertical: 16 },
-    llmBtn: { borderRadius: 12, overflow: 'hidden', marginBottom: 4 },
-    llmBtnGradient: { paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: '#8B5CF6', borderRadius: 12 },
-    llmBtnText: { color: '#C4B5FD', fontWeight: '700', fontSize: 13 },
-    mainBtnWrapper: { borderRadius: 12, overflow: 'hidden', marginTop: 8 },
-    primaryBtn: { paddingVertical: 15, alignItems: 'center' },
-    primaryBtnText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 15 },
-    customDrawerWrapper: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 9999, flexDirection: 'row' },
-    drawerBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.75)' },
-    drawerPanel: { width: '75%', height: '100%', backgroundColor: '#0B0F19', padding: 24, zIndex: 10000, elevation: 20 },
+    gpsBtn: {
+        backgroundColor: '#6366F1',
+        height: 44,
+        width: 44,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginLeft: 8,
+    },
+    searchBtn: {
+        backgroundColor: '#4F46E5',
+        height: 44,
+        width: 44,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginLeft: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+    },
+    llmBtn: {
+        borderRadius: 12,
+        overflow: 'hidden',
+        marginBottom: 16,
+    },
+    llmBtnGradient: {
+        paddingVertical: 12,
+        alignItems: 'center',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(139, 92, 246, 0.4)',
+    },
+    llmBtnText: {
+        color: '#C4B5FD',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+        marginVertical: 10,
+        marginBottom: 16,
+    },
+    mainBtnWrapper: {
+        marginTop: 10,
+        borderRadius: 14,
+        overflow: 'hidden',
+    },
+    primaryBtn: {
+        paddingVertical: 16,
+        alignItems: 'center',
+    },
+    primaryBtnText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    customDrawerWrapper: {
+        ...StyleSheet.absoluteFill,
+        zIndex: 999,
+        flexDirection: 'row',
+    },
+    drawerBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    },
+    drawerPanel: {
+        width: '75%',
+        backgroundColor: '#111827',
+        height: '100%',
+        padding: 24,
+        paddingTop: Platform.OS === 'android' ? 50 : 30,
+    },
     drawerHeader: {
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(255, 255, 255, 0.1)',
         paddingBottom: 20,
         marginBottom: 20,
-        paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 10 : 40,
     },
-    avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-    avatarText: { fontSize: 22, fontWeight: 'bold', color: '#FFFFFF' },
-    userName: { fontSize: 18, fontWeight: 'bold', color: '#FFFFFF' },
-    userSub: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
-    drawerMenu: { flex: 1 },
-    drawerItem: { paddingVertical: 14 },
-    drawerItemText: { fontSize: 15, color: '#CBD5E1', fontWeight: '500' },
+    avatar: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: '#6366F1',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    avatarText: {
+        color: '#FFFFFF',
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    userName: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    userSub: {
+        color: '#9CA3AF',
+        fontSize: 12,
+        marginTop: 2,
+    },
+    drawerMenu: {
+        gap: 16,
+    },
+    drawerItem: {
+        paddingVertical: 10,
+    },
+    drawerItemText: {
+        color: '#E5E7EB',
+        fontSize: 15,
+        fontWeight: '500',
+    },
 });

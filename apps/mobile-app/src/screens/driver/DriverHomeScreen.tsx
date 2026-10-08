@@ -35,10 +35,6 @@ export default function HomeScreen() {
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
 // 2. Navigation Hook Initialize Karein
   const navigation = useNavigation<any>();
- // 3. Exact key 'request' ke naam se data pass karein
-    navigation.navigate('DriverEnroute', {
-      request: mockRequest,
-    });
 
 
 const handleAccept = () => {
