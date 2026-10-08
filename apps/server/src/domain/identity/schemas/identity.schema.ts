@@ -16,8 +16,8 @@ export class Identity {
     @Prop({ required: true, trim: true })
     phone!: string;
 
-    @Prop({ required: true, type: [String], enum: Role, index: true })
-    roles!: Role[];
+    @Prop({ required: true, type: String, enum: Role, index: true })
+    role!: Role;
 
     @Prop({ required: true, enum: IdentityStatus, default: IdentityStatus.PENDING })
     status!: IdentityStatus;

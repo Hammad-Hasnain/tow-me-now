@@ -8,6 +8,7 @@ import { Identity, IdentitySchema } from './schemas/identity.schema';
     MongooseModule.forFeature([{ name: Identity.name, schema: IdentitySchema }]),
   ],
 
-  providers: [IdentityService]
+  providers: [IdentityService],
+  exports: [IdentityService],
 })
 export class IdentityModule { }
