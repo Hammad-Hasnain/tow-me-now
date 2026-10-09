@@ -91,4 +91,27 @@ export class DriverService {
         });
     }
 
+    async updateDriverOnTripStatus(
+        driverIdStr: string,
+        targetDuty: DutyStatus,
+        action: 'ACCEPT' | 'REJECT',
+        session: mongoose.ClientSession
+    ): Promise<void> {
+        const driver = await this.driverModel.findById(driverIdStr).session(session);
+
+        if (!driver) {
+            throw new NotFoundException('Driver registration tracking link mapping failed.');
+        }
+
+        driver.dutyStatus = targetDuty;
+
+        if (action === 'ACCEPT') {
+            driver.serviceReqAcc += 1; // Counters calculation update rules
+        } else {
+            driver.serviceReqRej += 1; // Rejection metrics validation update rules
+        }
+
+        await driver.save({ session });
+    }
+
 }
