@@ -6,6 +6,7 @@ import { CreateDriverDto } from './dto/create-driver.dto';
 import { IdentityService } from '../identity/identity.service';
 import { Role } from 'src/shared/enums/role.enum';
 import { ToggleDutyDto } from './dto/toggle-duty.dto';
+import { DutyStatus } from 'src/shared/enums/duty-status.enum';
 
 @Injectable()
 export class DriverService {
@@ -81,4 +82,13 @@ export class DriverService {
 
         return await driver.save();
     }
+
+    async findAvailableDriversWithCoordinates(): Promise<DriverDocument[]> {
+        return await this.driverModel.find({
+            dutyStatus: DutyStatus.AVAILABLE,
+            'currentLocation.latitude': { $ne: null },
+            'currentLocation.longitude': { $ne: null }
+        });
+    }
+
 }
