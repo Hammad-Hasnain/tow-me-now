@@ -4,7 +4,6 @@ import { Identity, IdentityDocument } from './schemas/identity.schema';
 import { ClientSession, Model } from 'mongoose';
 import { CreateIdentityDto } from './dto/create-identity.dto';
 import * as bcrypt from 'bcrypt';
-import { IdentityStatus } from 'src/shared/enums/identity-status.enum';
 import { ConfigService } from '@nestjs/config';
 
 
@@ -41,8 +40,7 @@ export class IdentityService {
                     email,
                     passwordHash,
                     phone,
-                    roles: [role],
-                    status: IdentityStatus.ACTIVE,
+                    role,
                 },
             ],
             { session },
