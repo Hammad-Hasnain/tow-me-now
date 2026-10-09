@@ -1,4 +1,5 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IdentityStatus } from 'src/shared/enums/identity-status.enum';
 import { Role } from 'src/shared/enums/role.enum';
 
 export class CreateIdentityDto {
@@ -18,4 +19,8 @@ export class CreateIdentityDto {
     @IsEnum(Role, { message: 'Supplied profile parameter must match a valid system clearance Role tag.' })
     @IsNotEmpty({ message: 'Primary authorization role type selection is required.' })
     role!: Role;
+
+    @IsOptional()
+    @IsEnum(IdentityStatus, { message: 'Supplied status must be a valid IdentityStatus tag.' })
+    status?: IdentityStatus;
 }

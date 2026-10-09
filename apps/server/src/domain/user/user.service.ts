@@ -5,6 +5,7 @@ import { User, UserDocument } from './schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { IdentityService } from '../identity/identity.service';
 import { Role } from 'src/shared/enums/role.enum';
+import { IdentityStatus } from 'src/shared/enums/identity-status.enum';
 
 @Injectable()
 export class UserService {
@@ -26,6 +27,7 @@ export class UserService {
                         password,
                         phone,
                         role: Role.USER,
+                        status: IdentityStatus.ACTIVE,
                     },
                     session,
                 );
