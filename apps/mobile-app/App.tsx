@@ -30,6 +30,9 @@ import DriverHomeScreen from './src/screens/driver/DriverHomeScreen';
 import AvailableDriversScreen from './src/screens/user/AvailableDriversScreen';
 import DriverStatusScreen from './src/screens/user/DriverStatusScreen';
 import DriverEnrouteScreen from './src/screens/driver/DriverEnrouteScreen';
+import Toast from 'react-native-toast-message';
+import AccountSettingsScreen from './src/screens/user/AccountSettingsScreen';
+import VehicleAccountSettScreen from './src/screens/driver/VehicleAccountSettScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -45,12 +48,15 @@ export default function App() {
         <Stack.Screen name="UserHomeScreen" component={UserHomeScreen} />
         <Stack.Screen name="AvailableDrivers" component={AvailableDriversScreen} />
         <Stack.Screen name="DriverStatus" component={DriverStatusScreen} />
+        <Stack.Screen name="AccountSettings" component={AccountSettingsScreen} />
+
 
 
 
 
         <Stack.Screen name="DriverHomeScreen" component={DriverHomeScreen} />
         <Stack.Screen name="DriverEnrouteScreen" component={DriverEnrouteScreen} />
+        <Stack.Screen name="VehicleAccountSettings" component={VehicleAccountSettScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -30,43 +30,38 @@ const mockRequest = {
 };
 
 export default function HomeScreen() {
-  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [isOnline, setIsOnline] = useState<boolean>(false);
   const [hasRequest, setHasRequest] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
-// 2. Navigation Hook Initialize Karein
+  // 2. Navigation Hook Initialize Karein
   const navigation = useNavigation<any>();
- // 3. Exact key 'request' ke naam se data pass karein
-    navigation.navigate('DriverEnroute', {
+  
+  const handleAccept = () => {
+    setHasRequest(false);
+    setIsDrawerOpen(false); // Drawer state ko close karein
+
+    // Standard Navigation
+    navigation.navigate('DriverEnrouteScreen', {
       request: mockRequest,
     });
-
-
-const handleAccept = () => {
-  setHasRequest(false);
-  setIsDrawerOpen(false); // Drawer state ko close karein
-
-  // Standard Navigation
-  navigation.navigate('DriverEnrouteScreen', {
-    request: mockRequest,
-  });
-};
+  };
   const handleReject = () => {
     setHasRequest(false);
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0B0F19' }}>
-     <StatusBar
-    barStyle="light-content"
-    {...({
-        translucent: true,
-        backgroundColor: 'transparent',
-    } as any)}
-/>
+      <StatusBar
+        barStyle="light-content"
+        {...({
+          translucent: true,
+          backgroundColor: 'transparent',
+        } as any)}
+      />
 
       <LinearGradient colors={['#0B0F19', '#111827', '#1E1B4B']} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
-          
+
           {/* Top Header */}
           <View style={styles.topHeader}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -100,7 +95,7 @@ const handleAccept = () => {
           </View>
 
           <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-            
+
             {/* Quick Today's Stats Banner */}
             <View style={styles.statsBanner}>
               <LinearGradient
@@ -305,8 +300,13 @@ const handleAccept = () => {
               <TouchableOpacity style={styles.drawerItem} onPress={() => setIsDrawerOpen(false)}>
                 <Text style={styles.drawerItemText}>📜 Completed Trips</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.drawerItem} onPress={() => setIsDrawerOpen(false)}>
-                <Text style={styles.drawerItemText}>⚙️ Vehicle & Account Settings</Text>
+              <TouchableOpacity style={styles.drawerItem}
+                onPress={() => {
+                  setIsDrawerOpen(false);
+                  navigation.navigate('VehicleAccountSettings');
+                }}>
+
+                <Text style={styles.drawerItemText}>⚙️ Profile & Account Settings</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   offlineBg: { backgroundColor: 'rgba(100, 116, 139, 0.15)', borderColor: '#64748B' },
   toggleText: { color: '#FFF', fontWeight: 'bold', fontSize: 12, marginRight: 6 },
   container: { padding: 16, paddingBottom: 40 },
-  
+
   /* Stats Banner */
   statsBanner: {
     marginBottom: 16,
