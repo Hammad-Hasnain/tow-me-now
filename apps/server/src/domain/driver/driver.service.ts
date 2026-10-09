@@ -1,10 +1,11 @@
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model } from 'mongoose';
 import { Driver, DriverDocument } from './schemas/driver.schema';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { IdentityService } from '../identity/identity.service';
 import { Role } from 'src/shared/enums/role.enum';
+import { ToggleDutyDto } from './dto/toggle-duty.dto';
 
 @Injectable()
 export class DriverService {
@@ -63,4 +64,21 @@ export class DriverService {
         return driver;
     }
 
+    async updateDutyAndLocation(toggleDutyDto: ToggleDutyDto): Promise<DriverDocument> {
+        const { driverId, dutyStatus, currentLocation } = toggleDutyDto;
+
+        const driver = await this.driverModel.findById(driverId);
+        if (!driver) {
+            throw new NotFoundException('Driver database profile registration record not found.');
+        }
+
+        driver.dutyStatus = dutyStatus;
+        driver.currentLocation = {
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+            address: currentLocation.address,
+        };
+
+        return await driver.save();
+    }
 }
