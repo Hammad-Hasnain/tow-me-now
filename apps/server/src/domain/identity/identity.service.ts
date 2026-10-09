@@ -34,7 +34,7 @@ export class IdentityService {
         createIdentityDto: CreateIdentityDto,
         session?: ClientSession,
     ): Promise<IdentityDocument> {
-        const { email, password, phone, role } = createIdentityDto;
+        const { email, password, phone, role, status } = createIdentityDto;
 
         const existing = await this.identityModel
             .findOne({ email })
@@ -53,6 +53,7 @@ export class IdentityService {
                     passwordHash,
                     phone,
                     role,
+                    status,
                 },
             ],
             { session },

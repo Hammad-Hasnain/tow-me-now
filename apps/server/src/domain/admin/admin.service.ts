@@ -5,6 +5,7 @@ import { Admin, AdminDocument } from './schemas/admin.schema';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { IdentityService } from '../identity/identity.service';
 import { Role } from 'src/shared/enums/role.enum';
+import { IdentityStatus } from 'src/shared/enums/identity-status.enum';
 
 @Injectable()
 export class AdminService {
@@ -26,6 +27,7 @@ export class AdminService {
                         password,
                         phone,
                         role: Role.ADMIN,
+                        status: IdentityStatus.ACTIVE,
                     },
                     session,
                 );
