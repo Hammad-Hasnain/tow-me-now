@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model } from 'mongoose';
 import { Driver, DriverDocument } from './schemas/driver.schema';
@@ -11,7 +11,7 @@ export class DriverService {
     constructor(
         @InjectModel(Driver.name) private readonly driverModel: Model<DriverDocument>,
         @InjectConnection() private readonly connection: mongoose.Connection,
-        private readonly identityService: IdentityService,
+        @Inject(forwardRef(() => IdentityService)) private readonly identityService: IdentityService,
     ) { }
 
     async createDriver(createDriverDto: CreateDriverDto): Promise<DriverDocument> {
@@ -54,4 +54,13 @@ export class DriverService {
             await session.endSession();
         }
     }
+
+    async getProfileByIdentity(identityId: mongoose.Types.ObjectId | string): Promise<DriverDocument> {
+        const driver = await this.driverModel.findOne({ identityId });
+        if (!driver) {
+            throw new Error('Driver profile configuration record not found.');
+        }
+        return driver;
+    }
+
 }
