@@ -23,7 +23,7 @@ const LoginScreen = ({ navigation }: any) => {
 
     // console.log("hey login butn ")
     // Abhi ke liye direct UserHomeScreen par navigate kar rahe hain
-    navigation.navigate('DriverHomeScreen');
+    navigation.navigate('UserHomeScreen');
 };
     return (
         <LinearGradient
