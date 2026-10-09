@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model } from 'mongoose';
 import { User, UserDocument } from './schemas/user.schema';
@@ -11,7 +11,7 @@ export class UserService {
     constructor(
         @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
         @InjectConnection() private readonly connection: mongoose.Connection,
-        private readonly identityService: IdentityService,
+        @Inject(forwardRef(() => IdentityService)) private readonly identityService: IdentityService,
     ) { }
 
     async createUser(createUserDto: CreateUserDto): Promise<UserDocument> {
@@ -51,4 +51,13 @@ export class UserService {
             await session.endSession();
         }
     }
+
+    async getProfileByIdentity(identityId: mongoose.Types.ObjectId | string): Promise<UserDocument> {
+        const user = await this.userModel.findOne({ identityId });
+        if (!user) {
+            throw new Error('User profile configuration record not found.');
+        }
+        return user;
+    }
+
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model } from 'mongoose';
 import { Admin, AdminDocument } from './schemas/admin.schema';
@@ -11,7 +11,7 @@ export class AdminService {
     constructor(
         @InjectModel(Admin.name) private readonly adminModel: Model<AdminDocument>,
         @InjectConnection() private readonly connection: mongoose.Connection,
-        private readonly identityService: IdentityService,
+        @Inject(forwardRef(() => IdentityService)) private readonly identityService: IdentityService,
     ) { }
 
     async createAdmin(createAdminDto: CreateAdminDto): Promise<AdminDocument> {
@@ -51,4 +51,13 @@ export class AdminService {
             await session.endSession();
         }
     }
+
+    async getProfileByIdentity(identityId: mongoose.Types.ObjectId | string): Promise<AdminDocument> {
+        const admin = await this.adminModel.findOne({ identityId });
+        if (!admin) {
+            throw new Error('Admin profile configuration record not found.');
+        }
+        return admin;
+    }
+
 }
