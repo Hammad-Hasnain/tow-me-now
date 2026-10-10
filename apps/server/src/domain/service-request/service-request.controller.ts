@@ -5,6 +5,7 @@ import { ServiceRequestDocument } from './schemas/service-request.schema';
 import { AvailableDriverCard } from './interfaces/available-drivers-response.interface';
 import { AssignDriverDto } from './dto/assign-driver.dto';
 import { DriverDecisionDto } from './dto/driver-decision.dto';
+import { EnRouteDetailsResponse } from './interfaces/en-route-details.interface';
 
 @Controller('service-request')
 export class ServiceRequestController {
@@ -39,5 +40,10 @@ export class ServiceRequestController {
         @Body() driverDecisionDto: DriverDecisionDto
     ): Promise<ServiceRequestDocument> {
         return await this.serviceRequestService.handleDriverTripDecision(requestId, driverDecisionDto);
+    }
+
+    @Get(':id/en-route')
+    async fetchActiveTrackingMetadata(@Param('id') requestId: string): Promise<EnRouteDetailsResponse> {
+        return await this.serviceRequestService.getEnRouteDetails(requestId);
     }
 }
