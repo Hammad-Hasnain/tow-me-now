@@ -7,6 +7,7 @@ import { IdentityService } from '../identity/identity.service';
 import { Role } from 'src/shared/enums/role.enum';
 import { IdentityStatus } from 'src/shared/enums/identity-status.enum';
 import { AdminUserListItem } from '../admin/interfaces/admin-user-list.interface';
+import { UserAnalyticsStats } from './interfaces/user-analytics.interface';
 
 @Injectable()
 export class UserService {
@@ -97,5 +98,34 @@ export class UserService {
         ]);
     }
 
+    async getUserStatusAnalytics(): Promise<UserAnalyticsStats> {
+        const counts = await this.userModel.aggregate([
+            {
+                $lookup: {
+                    from: 'identities',
+                    localField: 'identityId',
+                    foreignField: '_id',
+                    as: 'identity'
+                }
+            },
+            { $unwind: '$identity' },
+            {
+                $group: {
+                    _id: '$identity.status',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
 
+        const stats: UserAnalyticsStats = { total: 0, pending: 0, active: 0, deactivated: 0 };
+        counts.forEach((item) => {
+            const statusKey = item._id.toLowerCase();
+            if (statusKey === 'pending') stats.pending = item.count;
+            if (statusKey === 'active') stats.active = item.count;
+            if (statusKey === 'deactive' || statusKey === 'deactivated') stats.deactivated = item.count;
+        });
+
+        stats.total = stats.pending + stats.active + stats.deactivated;
+        return stats;
+    }
 }

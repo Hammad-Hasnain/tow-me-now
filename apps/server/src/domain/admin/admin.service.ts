@@ -12,6 +12,7 @@ import { DriverService } from '../driver/driver.service';
 import { AdminDriverListItem } from './interfaces/admin-driver-list.interface';
 import { ServiceRequestService } from '../service-request/service-request.service';
 import { AdminServiceRequestListItem } from './interfaces/admin-service-request-list.interface';
+import { AdminDashboardAnalytics } from './interfaces/admin-dashboard-analytics.interface';
 
 @Injectable()
 export class AdminService {
@@ -81,5 +82,19 @@ export class AdminService {
 
     async fetchAllServiceRequestsForAdmin(): Promise<AdminServiceRequestListItem[]> {
         return await this.serviceRequestService.fetchAllRequestsForAdmin();
+    }
+
+    async fetchDashboardMetricsSummary(): Promise<AdminDashboardAnalytics> {
+        const [userStats, driverStats, requestStats] = await Promise.all([
+            this.userService.getUserStatusAnalytics(),
+            this.driverService.getDriverStatusAnalytics(),
+            this.serviceRequestService.getRequestLifecycleAnalytics(),
+        ]);
+
+        return {
+            users: userStats,
+            drivers: driverStats,
+            serviceRequests: requestStats,
+        };
     }
 }

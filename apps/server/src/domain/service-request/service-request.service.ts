@@ -15,6 +15,7 @@ import { DriverJobCard } from './interfaces/driver-job-card.interface';
 import { EnRouteDetailsResponse } from './interfaces/en-route-details.interface';
 import { UpdateServiceStatusDto } from './dto/update-service-status.dto';
 import { AdminServiceRequestListItem } from '../admin/interfaces/admin-service-request-list.interface';
+import { ServiceRequestAnalyticsStats } from './interfaces/service-request-analytics.interface';
 
 @Injectable()
 export class ServiceRequestService {
@@ -456,4 +457,35 @@ export class ServiceRequestService {
             throw new InternalServerErrorException('Failed to execute database multi-level aggregation pipeline for service directory.');
         }
     }
+
+
+    async getRequestLifecycleAnalytics(): Promise<ServiceRequestAnalyticsStats> {
+        const counts = await this.serviceRequestModel.aggregate([
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const stats: ServiceRequestAnalyticsStats = { total: 0, pending: 0, accepted: 0, arrived: 0, towing: 0, completed: 0, rejected: 0, cancelled: 0 };
+        let sum = 0;
+
+        counts.forEach((item) => {
+            const statusKey = item._id.toUpperCase();
+            if (statusKey === 'PENDING') stats.pending = item.count;
+            if (statusKey === 'ACCEPTED') stats.accepted = item.count;
+            if (statusKey === 'ARRIVED') stats.arrived = item.count;
+            if (statusKey === 'TOWING') stats.towing = item.count;
+            if (statusKey === 'COMPLETED') stats.completed = item.count;
+            if (statusKey === 'REJECTED') stats.rejected = item.count;
+            if (statusKey === 'CANCELLED') stats.cancelled = item.count;
+            sum += item.count;
+        });
+
+        stats.total = sum;
+        return stats;
+    }
+
 }

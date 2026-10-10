@@ -8,6 +8,7 @@ import { Role } from 'src/shared/enums/role.enum';
 import { ToggleDutyDto } from './dto/toggle-duty.dto';
 import { DutyStatus } from 'src/shared/enums/duty-status.enum';
 import { AdminDriverListItem } from '../admin/interfaces/admin-driver-list.interface';
+import { DriverAnalyticsStats } from './interfaces/driver-analytics.interface';
 
 @Injectable()
 export class DriverService {
@@ -180,4 +181,37 @@ export class DriverService {
             throw new InternalServerErrorException('Failed to process database aggregation pipeline for drivers directory.');
         }
     }
+
+
+    async getDriverStatusAnalytics(): Promise<DriverAnalyticsStats> {
+        const counts = await this.driverModel.aggregate([
+            {
+                $lookup: {
+                    from: 'identities',
+                    localField: 'identityId',
+                    foreignField: '_id',
+                    as: 'identity'
+                }
+            },
+            { $unwind: '$identity' },
+            {
+                $group: {
+                    _id: '$identity.status',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const stats: DriverAnalyticsStats = { total: 0, pending: 0, active: 0, deactivated: 0 };
+        counts.forEach((item) => {
+            const statusKey = item._id.toLowerCase();
+            if (statusKey === 'pending') stats.pending = item.count;
+            if (statusKey === 'active') stats.active = item.count;
+            if (statusKey === 'deactive' || statusKey === 'deactivated') stats.deactivated = item.count;
+        });
+
+        stats.total = stats.pending + stats.active + stats.deactivated;
+        return stats;
+    }
+
 }
