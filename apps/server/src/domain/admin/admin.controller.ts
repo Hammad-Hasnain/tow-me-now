@@ -3,6 +3,7 @@ import { AdminService } from './admin.service';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { AdminUserListItem } from './interfaces/admin-user-list.interface';
 import { AdminDriverListItem } from './interfaces/admin-driver-list.interface';
+import { AdminServiceRequestListItem } from './interfaces/admin-service-request-list.interface';
 
 @Controller('admin')
 export class AdminController {
@@ -21,5 +22,10 @@ export class AdminController {
     @Get('drivers')
     async getAllDriversList(): Promise<AdminDriverListItem[]> {
         return await this.adminService.fetchAllDriversForAdmin();
+    }
+
+    @Get('service-requests')
+    async getAllServiceRequestsList(): Promise<AdminServiceRequestListItem[]> {
+        return await this.adminService.fetchAllServiceRequestsForAdmin();
     }
 }
