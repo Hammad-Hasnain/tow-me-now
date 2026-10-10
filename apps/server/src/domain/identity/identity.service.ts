@@ -13,6 +13,7 @@ import { LoginDto } from './dto/login.dto';
 import { LoginResponse, UnifiedUserProfile } from './interfaces/login-response.interface';
 import { IdentityStatus } from 'src/shared/enums/identity-status.enum';
 import { Role } from 'src/shared/enums/role.enum';
+import { UpdateIdentityStatusDto } from './dto/update-identity-status.dto';
 
 
 @Injectable()
@@ -122,4 +123,18 @@ export class IdentityService {
         }
     }
 
+    async updateProfileStatus(
+        identityId: string,
+        updateIdentityStatusDto: UpdateIdentityStatusDto
+    ): Promise<any> {
+        const { status } = updateIdentityStatusDto;
+
+        const identity = await this.identityModel.findById(identityId);
+        if (!identity) {
+            throw new NotFoundException('Target authentication identity record not found.');
+        }
+
+        identity.status = status;
+        return await identity.save();
+    }
 }

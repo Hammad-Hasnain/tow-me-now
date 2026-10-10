@@ -13,6 +13,7 @@ import { AdminDriverListItem } from './interfaces/admin-driver-list.interface';
 import { ServiceRequestService } from '../service-request/service-request.service';
 import { AdminServiceRequestListItem } from './interfaces/admin-service-request-list.interface';
 import { AdminDashboardAnalytics } from './interfaces/admin-dashboard-analytics.interface';
+import { UpdateIdentityStatusDto } from '../identity/dto/update-identity-status.dto';
 
 @Injectable()
 export class AdminService {
@@ -96,5 +97,12 @@ export class AdminService {
             drivers: driverStats,
             serviceRequests: requestStats,
         };
+    }
+
+    async updateDriverAccountStatus(
+        identityId: string,
+        updateIdentityStatusDto: UpdateIdentityStatusDto
+    ): Promise<any> {
+        return await this.identityService.updateProfileStatus(identityId, updateIdentityStatusDto);
     }
 }
