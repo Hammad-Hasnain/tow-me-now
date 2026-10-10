@@ -126,7 +126,7 @@ export class DriverService {
 
         // Accumulate metrics dynamically and release tracking status seamlessly back to pool
         driver.earnings += tripFare;
-        driver.dutyStatus = DutyStatus.AVAILABLE;
+        driver.dutyStatus = DutyStatus.OFFLINE;
 
         await driver.save({ session });
     }
