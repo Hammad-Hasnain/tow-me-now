@@ -6,6 +6,8 @@ import { CreateAdminDto } from './dto/create-admin.dto';
 import { IdentityService } from '../identity/identity.service';
 import { Role } from 'src/shared/enums/role.enum';
 import { IdentityStatus } from 'src/shared/enums/identity-status.enum';
+import { AdminUserListItem } from './interfaces/admin-user-list.interface';
+import { UserService } from '../user/user.service';
 
 @Injectable()
 export class AdminService {
@@ -13,6 +15,7 @@ export class AdminService {
         @InjectModel(Admin.name) private readonly adminModel: Model<AdminDocument>,
         @InjectConnection() private readonly connection: mongoose.Connection,
         @Inject(forwardRef(() => IdentityService)) private readonly identityService: IdentityService,
+        private readonly userService: UserService,
     ) { }
 
     async createAdmin(createAdminDto: CreateAdminDto): Promise<AdminDocument> {
@@ -62,4 +65,7 @@ export class AdminService {
         return admin;
     }
 
+    async fetchAllUsersForAdmin(): Promise<AdminUserListItem[]> {
+        return await this.userService.fetchAllUsersForAdmin();
+    }
 }
