@@ -13,6 +13,7 @@ import { DriverDecisionDto } from './dto/driver-decision.dto';
 import { DutyStatus } from 'src/shared/enums/duty-status.enum';
 import { DriverJobCard } from './interfaces/driver-job-card.interface';
 import { EnRouteDetailsResponse } from './interfaces/en-route-details.interface';
+import { UpdateServiceStatusDto } from './dto/update-service-status.dto';
 
 @Injectable()
 export class ServiceRequestService {
@@ -319,6 +320,62 @@ export class ServiceRequestService {
         } catch (error) {
             if (error instanceof NotFoundException) throw error;
             throw new InternalServerErrorException('Failed to process nested user context aggregation for tracking pipelines.');
+        }
+    }
+
+    async updateTripLifecycleStatus(
+        requestId: string,
+        updateServiceStatusDto: UpdateServiceStatusDto
+    ): Promise<ServiceRequestDocument> {
+        const { status: targetStatus } = updateServiceStatusDto;
+        const session = await this.connection.startSession();
+
+        try {
+            let finalizedRequest: ServiceRequestDocument;
+
+            await session.withTransaction(async () => {
+                // 1. Fetch current trip state configuration parameters
+                const request = await this.serviceRequestModel.findById(requestId).session(session);
+                if (!request) {
+                    throw new NotFoundException(' Towed process session trace context records not found.');
+                }
+
+                // 2. Strict Sequential State Validation Guard Engine Rules
+                if (targetStatus === ServiceStatus.ARRIVED && request.status !== ServiceStatus.ACCEPTED) {
+                    throw new BadRequestException('Driver can only trigger ARRIVED state updates if the trip is currently ACCEPTED.');
+                }
+                if (targetStatus === ServiceStatus.TOWING && request.status !== ServiceStatus.ARRIVED) {
+                    throw new BadRequestException('TOWING sequence can only activate once the driver has ARRIVED at the breakdown location.');
+                }
+                if (targetStatus === ServiceStatus.COMPLETED && request.status !== ServiceStatus.TOWING) {
+                    throw new BadRequestException('Trips can only be flagged as COMPLETED if they are currently in active TOWING state transmission.');
+                }
+
+                // 3. Mutate Request Status Context
+                request.status = targetStatus;
+
+                // 4. Critical Block: Handle Transaction Operations on COMPLETED State Step
+                if (targetStatus === ServiceStatus.COMPLETED) {
+                    if (!request.driverId) {
+                        throw new BadRequestException('Cannot settle financial computations over requests lacking allocated driver records.');
+                    }
+
+                    // Delegate atomic updates to driver context inside active transaction thread safely
+                    await this.driverService.settleDriverEarningsAndRelease(
+                        request.driverId.toString(),
+                        request.fare,
+                        session
+                    );
+                }
+
+                finalizedRequest = await request.save({ session });
+            });
+
+            return finalizedRequest!;
+        } catch (error) {
+            throw error;
+        } finally {
+            await session.endSession();
         }
     }
 }
