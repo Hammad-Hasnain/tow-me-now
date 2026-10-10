@@ -4,11 +4,17 @@ import { AdminController } from './admin.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Admin, AdminSchema } from './schemas/admin.schema';
 import { IdentityModule } from '../identity/identity.module';
+import { UserModule } from '../user/user.module';
+import { DriverModule } from '../driver/driver.module';
+import { ServiceRequestModule } from '../service-request/service-request.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Admin.name, schema: AdminSchema }]),
     forwardRef(() => IdentityModule),
+    UserModule,
+    DriverModule,
+    ServiceRequestModule,
   ],
   providers: [AdminService],
   controllers: [AdminController],

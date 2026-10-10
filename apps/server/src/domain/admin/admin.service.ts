@@ -6,6 +6,13 @@ import { CreateAdminDto } from './dto/create-admin.dto';
 import { IdentityService } from '../identity/identity.service';
 import { Role } from 'src/shared/enums/role.enum';
 import { IdentityStatus } from 'src/shared/enums/identity-status.enum';
+import { AdminUserListItem } from './interfaces/admin-user-list.interface';
+import { UserService } from '../user/user.service';
+import { DriverService } from '../driver/driver.service';
+import { AdminDriverListItem } from './interfaces/admin-driver-list.interface';
+import { ServiceRequestService } from '../service-request/service-request.service';
+import { AdminServiceRequestListItem } from './interfaces/admin-service-request-list.interface';
+import { AdminDashboardAnalytics } from './interfaces/admin-dashboard-analytics.interface';
 
 @Injectable()
 export class AdminService {
@@ -13,6 +20,9 @@ export class AdminService {
         @InjectModel(Admin.name) private readonly adminModel: Model<AdminDocument>,
         @InjectConnection() private readonly connection: mongoose.Connection,
         @Inject(forwardRef(() => IdentityService)) private readonly identityService: IdentityService,
+        private readonly userService: UserService,
+        private readonly driverService: DriverService,
+        private readonly serviceRequestService: ServiceRequestService,
     ) { }
 
     async createAdmin(createAdminDto: CreateAdminDto): Promise<AdminDocument> {
@@ -62,4 +72,29 @@ export class AdminService {
         return admin;
     }
 
+    async fetchAllUsersForAdmin(): Promise<AdminUserListItem[]> {
+        return await this.userService.fetchAllUsersForAdmin();
+    }
+
+    async fetchAllDriversForAdmin(): Promise<AdminDriverListItem[]> {
+        return await this.driverService.fetchAllDriversForAdmin();
+    }
+
+    async fetchAllServiceRequestsForAdmin(): Promise<AdminServiceRequestListItem[]> {
+        return await this.serviceRequestService.fetchAllRequestsForAdmin();
+    }
+
+    async fetchDashboardMetricsSummary(): Promise<AdminDashboardAnalytics> {
+        const [userStats, driverStats, requestStats] = await Promise.all([
+            this.userService.getUserStatusAnalytics(),
+            this.driverService.getDriverStatusAnalytics(),
+            this.serviceRequestService.getRequestLifecycleAnalytics(),
+        ]);
+
+        return {
+            users: userStats,
+            drivers: driverStats,
+            serviceRequests: requestStats,
+        };
+    }
 }
