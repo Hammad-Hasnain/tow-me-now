@@ -6,6 +6,7 @@ import { AvailableDriverCard } from './interfaces/available-drivers-response.int
 import { AssignDriverDto } from './dto/assign-driver.dto';
 import { DriverDecisionDto } from './dto/driver-decision.dto';
 import { EnRouteDetailsResponse } from './interfaces/en-route-details.interface';
+import { UpdateServiceStatusDto } from './dto/update-service-status.dto';
 
 @Controller('service-request')
 export class ServiceRequestController {
@@ -45,5 +46,13 @@ export class ServiceRequestController {
     @Get(':id/en-route')
     async fetchActiveTrackingMetadata(@Param('id') requestId: string): Promise<EnRouteDetailsResponse> {
         return await this.serviceRequestService.getEnRouteDetails(requestId);
+    }
+
+    @Patch(':id/status')
+    async changeTripStateProgress(
+        @Param('id') requestId: string,
+        @Body() updateServiceStatusDto: UpdateServiceStatusDto
+    ): Promise<ServiceRequestDocument> {
+        return await this.serviceRequestService.updateTripLifecycleStatus(requestId, updateServiceStatusDto);
     }
 }

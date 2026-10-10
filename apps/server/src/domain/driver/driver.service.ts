@@ -114,4 +114,22 @@ export class DriverService {
         await driver.save({ session });
     }
 
+    async settleDriverEarningsAndRelease(
+        driverIdStr: string,
+        tripFare: number,
+        session: mongoose.ClientSession
+    ): Promise<void> {
+        const driver = await this.driverModel.findById(driverIdStr).session(session);
+        if (!driver) {
+            throw new NotFoundException('Driver registration validation mapping context link failed.');
+        }
+
+        // Accumulate metrics dynamically and release tracking status seamlessly back to pool
+        driver.earnings += tripFare;
+        driver.dutyStatus = DutyStatus.AVAILABLE;
+
+        await driver.save({ session });
+    }
+
+
 }
