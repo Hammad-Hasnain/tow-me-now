@@ -11,6 +11,7 @@ import { ServiceStatus } from 'src/shared/enums/service-status.enum';
 import { AssignDriverDto } from './dto/assign-driver.dto';
 import { DriverDecisionDto } from './dto/driver-decision.dto';
 import { DutyStatus } from 'src/shared/enums/duty-status.enum';
+import { DriverJobCard } from './interfaces/driver-job-card.interface';
 
 @Injectable()
 export class ServiceRequestService {
@@ -116,36 +117,45 @@ export class ServiceRequestService {
     }
 
     // Fetch assigned active queues for a specific Driver screen layout map matrix
-    // async getActiveRequestsForDriver(driverIdStr: string): Promise<any[]> {
-    //     const driverIdObj = new mongoose.Types.ObjectId(driverIdStr);
+    async getActiveRequestsForDriver(driverIdStr: string): Promise<DriverJobCard[]> {
+        return await this.serviceRequestModel.aggregate([
+            {
+                $match: {
+                    driverId: new mongoose.Types.ObjectId(driverIdStr),
+                    status: ServiceStatus.PENDING
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'userId',
+                    foreignField: '_id',
+                    as: 'userData'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$userData',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    id: { $toString: '$_id' },
+                    userName: { $ifNull: ['$userData.name', 'Valued Customer'] },
+                    vehicle: 1,
+                    model: 1,
+                    fare: 1,
+                    problem: 1,
+                    pickupLoc: 1,
+                    dropoffLoc: 1,
+                    status: 1
+                }
+            }
+        ]);
+    }
 
-    //     // Fetch requests filtering active statuses mapping and populate original profile names securely
-    //     const activeRequests = await this.serviceRequestModel
-    //         .find({
-    //             driverId: driverIdObj,
-    //             status: { $in: [ServiceStatus.PENDING] }
-    //         })
-    //         .populate('userId', 'name') // Cross-domain document references sync mapping
-    //         .exec();
-
-    //     return activeRequests.map((req) => {
-    //         const reqObj = req.toObject();
-    //         const populatedUser = reqObj.userId as any; // Cast populated values dynamic matching blocks
-
-    //         return {
-    //             id: reqObj.id,
-    //             userName: populatedUser?.name || 'Valued Customer', // Clean transformed mapping parameter
-    //             fare: reqObj.fare,
-    //             vehicle: reqObj.vehicle,
-    //             model: reqObj.model,
-    //             problem: reqObj.problem,
-    //             pickupLoc: reqObj.pickupLoc,
-    //             dropoffLoc: reqObj.dropoffLoc,
-    //             status: reqObj.status,
-    //             createdAt: reqObj.createdAt
-    //         };
-    //     });
-    // }
 
     // Handle Driver lifecycle decision mutations block inside atomic transaction contexts
     async handleDriverTripDecision(

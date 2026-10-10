@@ -28,10 +28,10 @@ export class ServiceRequestController {
         return await this.serviceRequestService.assignDriverToRequest(requestId, assignDriverDto);
     }
 
-    // @Get('driver/:driverId')
-    // async fetchDriverJobQueue(@Param('driverId') driverId: string): Promise<any[]> {
-    //     return await this.serviceRequestService.getActiveRequestsForDriver(driverId);
-    // }
+    @Get('driver/:driverId')
+    async fetchDriverJobQueue(@Param('driverId') driverId: string): Promise<any[]> {
+        return await this.serviceRequestService.getActiveRequestsForDriver(driverId);
+    }
 
     @Patch(':id/decision')
     async processDriverTripAction(
