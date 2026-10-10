@@ -8,6 +8,8 @@ import { Role } from 'src/shared/enums/role.enum';
 import { IdentityStatus } from 'src/shared/enums/identity-status.enum';
 import { AdminUserListItem } from './interfaces/admin-user-list.interface';
 import { UserService } from '../user/user.service';
+import { DriverService } from '../driver/driver.service';
+import { AdminDriverListItem } from './interfaces/admin-driver-list.interface';
 
 @Injectable()
 export class AdminService {
@@ -16,6 +18,7 @@ export class AdminService {
         @InjectConnection() private readonly connection: mongoose.Connection,
         @Inject(forwardRef(() => IdentityService)) private readonly identityService: IdentityService,
         private readonly userService: UserService,
+        private readonly driverService: DriverService,
     ) { }
 
     async createAdmin(createAdminDto: CreateAdminDto): Promise<AdminDocument> {
@@ -67,5 +70,9 @@ export class AdminService {
 
     async fetchAllUsersForAdmin(): Promise<AdminUserListItem[]> {
         return await this.userService.fetchAllUsersForAdmin();
+    }
+
+    async fetchAllDriversForAdmin(): Promise<AdminDriverListItem[]> {
+        return await this.driverService.fetchAllDriversForAdmin();
     }
 }

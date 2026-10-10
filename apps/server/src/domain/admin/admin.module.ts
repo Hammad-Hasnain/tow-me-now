@@ -5,12 +5,14 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Admin, AdminSchema } from './schemas/admin.schema';
 import { IdentityModule } from '../identity/identity.module';
 import { UserModule } from '../user/user.module';
+import { DriverModule } from '../driver/driver.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Admin.name, schema: AdminSchema }]),
     forwardRef(() => IdentityModule),
     UserModule,
+    DriverModule,
   ],
   providers: [AdminService],
   controllers: [AdminController],

@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model } from 'mongoose';
 import { Driver, DriverDocument } from './schemas/driver.schema';
@@ -7,6 +7,7 @@ import { IdentityService } from '../identity/identity.service';
 import { Role } from 'src/shared/enums/role.enum';
 import { ToggleDutyDto } from './dto/toggle-duty.dto';
 import { DutyStatus } from 'src/shared/enums/duty-status.enum';
+import { AdminDriverListItem } from '../admin/interfaces/admin-driver-list.interface';
 
 @Injectable()
 export class DriverService {
@@ -131,5 +132,52 @@ export class DriverService {
         await driver.save({ session });
     }
 
-
+    async fetchAllDriversForAdmin(): Promise<AdminDriverListItem[]> {
+        try {
+            return await this.driverModel.aggregate<AdminDriverListItem>([
+                {
+                    $lookup: {
+                        from: 'identities',
+                        localField: 'identityId',
+                        foreignField: '_id',
+                        as: 'identityData'
+                    }
+                },
+                {
+                    $unwind: {
+                        path: '$identityData',
+                        preserveNullAndEmptyArrays: true
+                    }
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        id: { $toString: '$_id' },
+                        name: 1,
+                        identityId: { $toString: '$identityId' },
+                        email: { $ifNull: ['$identityData.email', 'N/A'] },
+                        phone: { $ifNull: ['$identityData.phone', 'N/A'] },
+                        role: { $ifNull: ['$identityData.role', 'DRIVER'] },
+                        status: { $ifNull: ['$identityData.status', 'PENDING'] },
+                        vehicleType: 1,
+                        vehicleNumber: 1,
+                        cnic: 1,
+                        license: 1,
+                        vehiclePaper: 1,
+                        profile: 1,
+                        earnings: 1,
+                        serviceReqAcc: 1,
+                        serviceReqRej: 1,
+                        dutyStatus: 1,
+                        currentLocation: 1,
+                        createdAt: 1,
+                        updatedAt: 1
+                    }
+                },
+                { $sort: { createdAt: -1 } }
+            ]);
+        } catch (error) {
+            throw new InternalServerErrorException('Failed to process database aggregation pipeline for drivers directory.');
+        }
+    }
 }
