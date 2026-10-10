@@ -11,6 +11,8 @@ import { ServiceStatus } from 'src/shared/enums/service-status.enum';
 import { AssignDriverDto } from './dto/assign-driver.dto';
 import { DriverDecisionDto } from './dto/driver-decision.dto';
 import { DutyStatus } from 'src/shared/enums/duty-status.enum';
+import { DriverJobCard } from './interfaces/driver-job-card.interface';
+import { EnRouteDetailsResponse } from './interfaces/en-route-details.interface';
 
 @Injectable()
 export class ServiceRequestService {
@@ -116,36 +118,44 @@ export class ServiceRequestService {
     }
 
     // Fetch assigned active queues for a specific Driver screen layout map matrix
-    // async getActiveRequestsForDriver(driverIdStr: string): Promise<any[]> {
-    //     const driverIdObj = new mongoose.Types.ObjectId(driverIdStr);
-
-    //     // Fetch requests filtering active statuses mapping and populate original profile names securely
-    //     const activeRequests = await this.serviceRequestModel
-    //         .find({
-    //             driverId: driverIdObj,
-    //             status: { $in: [ServiceStatus.PENDING] }
-    //         })
-    //         .populate('userId', 'name') // Cross-domain document references sync mapping
-    //         .exec();
-
-    //     return activeRequests.map((req) => {
-    //         const reqObj = req.toObject();
-    //         const populatedUser = reqObj.userId as any; // Cast populated values dynamic matching blocks
-
-    //         return {
-    //             id: reqObj.id,
-    //             userName: populatedUser?.name || 'Valued Customer', // Clean transformed mapping parameter
-    //             fare: reqObj.fare,
-    //             vehicle: reqObj.vehicle,
-    //             model: reqObj.model,
-    //             problem: reqObj.problem,
-    //             pickupLoc: reqObj.pickupLoc,
-    //             dropoffLoc: reqObj.dropoffLoc,
-    //             status: reqObj.status,
-    //             createdAt: reqObj.createdAt
-    //         };
-    //     });
-    // }
+    async getActiveRequestsForDriver(driverIdStr: string): Promise<DriverJobCard[]> {
+        return await this.serviceRequestModel.aggregate([
+            {
+                $match: {
+                    driverId: new mongoose.Types.ObjectId(driverIdStr),
+                    status: ServiceStatus.PENDING
+                }
+            },
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'userId',
+                    foreignField: '_id',
+                    as: 'userData'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$userData',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    id: { $toString: '$_id' },
+                    userName: { $ifNull: ['$userData.name', 'Valued Customer'] },
+                    vehicle: 1,
+                    model: 1,
+                    fare: 1,
+                    problem: 1,
+                    pickupLoc: 1,
+                    dropoffLoc: 1,
+                    status: 1
+                }
+            }
+        ]);
+    }
 
     // Handle Driver lifecycle decision mutations block inside atomic transaction contexts
     async handleDriverTripDecision(
@@ -204,6 +214,111 @@ export class ServiceRequestService {
             throw error;
         } finally {
             await session.endSession();
+        }
+    }
+
+
+    async getEnRouteDetails(requestId: string): Promise<EnRouteDetailsResponse> {
+        try {
+            const [result] = await this.serviceRequestModel.aggregate<EnRouteDetailsResponse>([
+                {
+                    $match: {
+                        _id: new mongoose.Types.ObjectId(requestId)
+                    }
+                },
+                // Fetch User profile
+                {
+                    $lookup: {
+                        from: 'users',
+                        localField: 'userId',
+                        foreignField: '_id',
+                        as: 'userProfile'
+                    }
+                },
+                { $unwind: { path: '$userProfile', preserveNullAndEmptyArrays: true } },
+                // Fetch User Identity phone
+                {
+                    $lookup: {
+                        from: 'identities',
+                        localField: 'userProfile.identityId',
+                        foreignField: '_id',
+                        as: 'userIdentity'
+                    }
+                },
+                { $unwind: { path: '$userIdentity', preserveNullAndEmptyArrays: true } },
+                // Fetch Driver profile data 
+                {
+                    $lookup: {
+                        from: 'drivers',
+                        localField: 'driverId',
+                        foreignField: '_id',
+                        as: 'driverProfile'
+                    }
+                },
+                { $unwind: { path: '$driverProfile', preserveNullAndEmptyArrays: true } },
+                // Fetch Driver Identity phone
+                {
+                    $lookup: {
+                        from: 'identities',
+                        localField: 'driverProfile.identityId',
+                        foreignField: '_id',
+                        as: 'driverIdentity'
+                    }
+                },
+                { $unwind: { path: '$driverIdentity', preserveNullAndEmptyArrays: true } },
+                // Project structural nested namespaces cleanly
+                {
+                    $project: {
+                        _id: 0,
+                        id: { $toString: '$_id' },
+
+                        // Nested object for Driver
+                        driver: {
+                            $cond: {
+                                if: { $not: ['$driverProfile._id'] },
+                                then: null,
+                                else: {
+                                    name: { $ifNull: ['$driverProfile.name', 'Allocated Rescue Specialist'] },
+                                    phoneNum: { $ifNull: ['$driverIdentity.phone', 'N/A'] },
+                                    vehicleType: { $ifNull: ['$driverProfile.vehicleType', 'HOOK_AND_CHAIN'] },
+                                    vehicleNumber: { $ifNull: ['$driverProfile.vehicleNumber', 'N/A'] },
+                                    currentLocation: {
+                                        latitude: { $ifNull: ['$driverProfile.currentLocation.latitude', null] },
+                                        longitude: { $ifNull: ['$driverProfile.currentLocation.longitude', null] },
+                                        address: { $ifNull: ['$driverProfile.currentLocation.address', null] }
+                                    }
+                                }
+                            }
+                        },
+
+                        // Nested object for User (Clean Consistency Renamed)
+                        user: {
+                            name: { $ifNull: ['$userProfile.name', 'Valued Customer'] },
+                            phoneNum: { $ifNull: ['$userIdentity.phone', 'N/A'] }
+                        },
+
+                        // Core operational service fields
+                        vehicle: 1,
+                        model: 1,
+                        problem: 1,
+                        pickupLoc: 1,
+                        dropoffLoc: 1,
+                        fare: 1,
+                        status: 1,
+                        createdAt: 1,
+                        updatedAt: 1
+                    }
+                }
+            ]);
+
+            if (!result) {
+                throw new NotFoundException('Active tracking route execution context data records not found.');
+            }
+
+            return result;
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            throw new InternalServerErrorException('Failed to process nested user context aggregation for tracking pipelines.');
         }
     }
 }
