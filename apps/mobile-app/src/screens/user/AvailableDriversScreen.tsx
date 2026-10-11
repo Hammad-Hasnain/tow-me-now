@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
@@ -10,28 +10,45 @@ import {
     Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { serviceRequestService } from '../services/serviceRequest';
 
-export default function AvailableDriversScreen({ navigation }: any) {
-    const driversList = [
-        {
-            id: '1',
-            name: 'Ali Raza',
-            phone: '+92 300 1234567',
-            vehicle: 'Flatbed Tow Truck',
-            vehicleNo: 'LEB-9988',
-            distance: '2.5 km away',
-            fare: 'PKR 3,500',
-        },
-        {
-            id: '2',
-            name: 'Usman Khan',
-            phone: '+92 321 7654321',
-            vehicle: 'Wheel Lift Truck',
-            vehicleNo: 'KHI-4433',
-            distance: '4.1 km away',
-            fare: 'PKR 2,800',
-        },
-    ];
+export default function AvailableDriversScreen({ navigation, route }: any) {
+    // route.params se requestDetails nikalna zaroori hai
+    const { requestDetails } = route?.params || {};
+const requestId = requestDetails?.id;
+    console.log("Received Request Details on Next Screen:", requestDetails);
+
+
+
+    const [driversList, setDriversList] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // API Call to fetch available drivers
+    useEffect(() => {
+        const fetchAvailableDrivers = async () => {
+            if (!requestId) {
+                Alert.alert('Error', 'Service Request ID not found.');
+                setLoading(false);
+                return;
+            }
+
+            try {
+                setLoading(true);
+                const data = await serviceRequestService.getAvailableDrivers(requestId);
+                console.log("Fetched Available Drivers:", data);
+                
+                // Agar data array hai to set kar dein (ya backend response ke mutabiq adjust karein)
+                setDriversList(Array.isArray(data) ? data : data.drivers || []);
+            } catch (error: any) {
+                console.log("Error fetching drivers:", error);
+                Alert.alert('Error', typeof error === 'string' ? error : 'Failed to fetch available drivers');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAvailableDrivers();
+    }, [requestId]);
 
     const handleSelectDriver = (driver: any) => {
         navigation.navigate('DriverStatus', { driver });
