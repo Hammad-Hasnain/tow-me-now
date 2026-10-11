@@ -1,0 +1,56 @@
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Apni backend API ka base URL yahan dein
+const apiClient = axios.create({
+  baseURL: 'http://192.168.100.68:3000/api/v1',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+});
+
+// 1. Request Interceptor (Token attach karne ke liye)
+apiClient.interceptors.request.use(
+  async (config) => {
+    // Yahan AsyncStorage se token nikal kar header mein add kar sakte hain
+    const token = await AsyncStorage.getItem('userToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// 2. Response Interceptor (Success aur Errors handle karne ke liye)
+apiClient.interceptors.response.use(
+  (response) => {
+    // Backend se aane wale successful response ko directly return karein ya data extract karein
+    return response.data;
+  },
+  (error) => {
+    // Backend se aane wale error ko properly handle karna
+    if (error.response) {
+      // Server ne response diya lekin status code 2xx ki range mein nahi hai
+      console.error('API Error Response:', error.response.data);
+      
+      // Backend ke custom error message ya default message ko throw karein
+      const errorMessage = error.response.data?.message || error.response.data || 'Something went wrong on the server.';
+      return Promise.reject(errorMessage);
+    } else if (error.request) {
+      // Request bheji gayi lekin koi response nahi mila (Network error / Backend off hai)
+      console.error('Network Error:', error.request);
+      return Promise.reject('Network error! Please check if your backend server is running and adb reverse is active.');
+    } else {
+      // Request setup karte waqt koi error aa gaya ho
+      console.error('Error Message:', error.message);
+      return Promise.reject(error.message);
+    }
+  }
+);
+
+export default apiClient;
