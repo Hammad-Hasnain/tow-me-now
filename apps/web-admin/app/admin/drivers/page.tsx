@@ -2,142 +2,36 @@
 
 import { useEffect, useState } from "react";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import {
+  adminApi,
+  ApiDriverItem,
+  IdentityStatus,
+} from "@/lib/api/admin";
 
-type AccountStatus = "Pending" | "Active" | "Suspended" | "Rejected";
-
-type Driver = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  password: string;
-  accStatus: AccountStatus;
-  vehicleType: string;
-  vehicleNo: string;
-  cnicImage: string;
-  licenseImage: string;
-  vehiclePapersImage: string;
-  profilePic: string;
-};
-
-const MOCK_DRIVERS: Driver[] = [
-  {
-    id: "DRV-001",
-    name: "Ahmed Raza",
-    email: "ahmed.raza@example.com",
-    phone: "+92 300 1234567",
-    password: "Ahmed@123",
-    accStatus: "Active",
-    vehicleType: "Tow Truck",
-    vehicleNo: "KHI-1234",
-    cnicImage: "https://placehold.co/900x600?text=CNIC+Ahmed+Raza",
-    licenseImage: "https://placehold.co/900x600?text=License+Ahmed+Raza",
-    vehiclePapersImage:
-      "https://placehold.co/900x600?text=Vehicle+Papers+Ahmed+Raza",
-    profilePic: "https://i.pravatar.cc/150?img=12",
-  },
-  {
-    id: "DRV-002",
-    name: "Bilal Khan",
-    email: "bilal.khan@example.com",
-    phone: "+92 301 7654321",
-    password: "Bilal@456",
-    accStatus: "Pending",
-    vehicleType: "Flatbed Tow Truck",
-    vehicleNo: "LHR-5678",
-    cnicImage: "https://placehold.co/900x600?text=CNIC+Bilal+Khan",
-    licenseImage: "https://placehold.co/900x600?text=License+Bilal+Khan",
-    vehiclePapersImage:
-      "https://placehold.co/900x600?text=Vehicle+Papers+Bilal+Khan",
-    profilePic: "https://i.pravatar.cc/150?img=33",
-  },
-  {
-    id: "DRV-003",
-    name: "Usman Ali",
-    email: "usman.ali@example.com",
-    phone: "+92 302 9876543",
-    password: "Usman@789",
-    accStatus: "Suspended",
-    vehicleType: "Wheel Lift",
-    vehicleNo: "ISB-9012",
-    cnicImage: "https://placehold.co/900x600?text=CNIC+Usman+Ali",
-    licenseImage: "https://placehold.co/900x600?text=License+Usman+Ali",
-    vehiclePapersImage:
-      "https://placehold.co/900x600?text=Vehicle+Papers+Usman+Ali",
-    profilePic: "https://i.pravatar.cc/150?img=11",
-  },
-  {
-    id: "DRV-004",
-    name: "Hassan Ahmed",
-    email: "hassan.ahmed@example.com",
-    phone: "+92 303 4567890",
-    password: "Hassan@321",
-    accStatus: "Rejected",
-    vehicleType: "Heavy Duty Tow Truck",
-    vehicleNo: "KHI-7890",
-    cnicImage: "https://placehold.co/900x600?text=CNIC+Hassan+Ahmed",
-    licenseImage: "https://placehold.co/900x600?text=License+Hassan+Ahmed",
-    vehiclePapersImage:
-      "https://placehold.co/900x600?text=Vehicle+Papers+Hassan+Ahmed",
-    profilePic: "https://i.pravatar.cc/150?img=68",
-  },
-];
-
-/**
- * Placeholder for future backend integration.
- * GET /api/v1/drivers
- */
-async function fetchDrivers(): Promise<Driver[]> {
-  return Promise.resolve(MOCK_DRIVERS);
-}
-
-/**
- * Placeholder for future backend integration.
- * PATCH /api/v1/drivers/:id/status
- */
-async function updateDriverStatus(
-  id: string,
-  newStatus: AccountStatus,
-): Promise<Driver> {
-  const driver = MOCK_DRIVERS.find((item) => item.id === id);
-
-  if (!driver) {
-    throw new Error("Driver not found.");
-  }
-
-  return Promise.resolve({
-    ...driver,
-    accStatus: newStatus,
-  });
-}
-
-function getStatusClasses(status: AccountStatus) {
+function getStatusClasses(status: IdentityStatus) {
   switch (status) {
-    case "Active":
+    case "ACTIVE":
       return "border border-emerald-400/20 bg-emerald-400/10 text-emerald-300";
-
-    case "Pending":
+    case "PENDING":
       return "border border-amber-400/20 bg-amber-400/10 text-amber-300";
-
-    case "Suspended":
-      return "border border-orange-400/20 bg-orange-400/10 text-orange-300";
-
-    case "Rejected":
-      return "border border-red-400/20 bg-red-400/10 text-red-300";
-
+    case "DEACTIVE":
     default:
-      return "border border-white/10 bg-white/5 text-[#CBD5E1]";
+      return "border border-red-400/20 bg-red-400/10 text-red-300";
   }
 }
 
-function StatusBadge({ status }: { status: AccountStatus }) {
+function StatusBadge({ status }: { status: IdentityStatus }) {
   return (
     <span
       className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
         status,
       )}`}
     >
-      {status}
+      {status === "ACTIVE"
+        ? "Active"
+        : status === "PENDING"
+        ? "Pending"
+        : "Deactive"}
     </span>
   );
 }
@@ -165,7 +59,7 @@ function DocumentPreview({
   onClick,
 }: {
   label: string;
-  image: string;
+  image: string | null;
   onClick: () => void;
 }) {
   return (
@@ -174,36 +68,39 @@ function DocumentPreview({
         {label}
       </p>
 
-      <button
-        type="button"
-        onClick={onClick}
-        className="group relative block h-32 w-full overflow-hidden rounded-xl border border-white/10 bg-[#0F172A] text-left transition hover:border-violet-400/50 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
-      >
-        <img
-          src={image}
-          alt={label}
-          className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
-        />
+      {image ? (
+        <button
+          type="button"
+          onClick={onClick}
+          className="group relative block h-32 w-full overflow-hidden rounded-xl border border-white/10 bg-[#0F172A] text-left transition hover:border-violet-400/50 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+        >
+          <img
+            src={image}
+            alt={label}
+            className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+          />
 
-        <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-sm font-medium text-white opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
-          Click to enlarge
-        </span>
-      </button>
+          <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-sm font-medium text-white opacity-0 transition group-hover:bg-black/40 group-hover:opacity-100">
+            Click to enlarge
+          </span>
+        </button>
+      ) : (
+        <div className="flex h-32 w-full items-center justify-center rounded-xl border border-dashed border-white/10 bg-[#0F172A] p-4 text-center">
+          <p className="text-xs text-[#64748B]">No {label} uploaded</p>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function DriversPage() {
-  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [drivers, setDrivers] = useState<ApiDriverItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
-  const [selectedStatus, setSelectedStatus] =
-    useState<AccountStatus>("Pending");
-
-  const [showPassword, setShowPassword] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<ApiDriverItem | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<IdentityStatus>("PENDING");
   const [saving, setSaving] = useState(false);
-
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const [toast, setToast] = useState<{
@@ -211,123 +108,89 @@ export default function DriversPage() {
     message: string;
   } | null>(null);
 
+  const loadDrivers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await adminApi.getDrivers();
+      setDrivers(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      const msg = err?.message || "Failed to load drivers.";
+      setError(msg);
+      setToast({
+        type: "error",
+        message: msg,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let mounted = true;
-
-    const loadDrivers = async () => {
-      try {
-        setLoading(true);
-
-        const data = await fetchDrivers();
-
-        if (mounted) {
-          setDrivers(data);
-        }
-      } catch {
-        if (mounted) {
-          setToast({
-            type: "error",
-            message: "Failed to load drivers.",
-          });
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
     loadDrivers();
-
-    return () => {
-      mounted = false;
-    };
   }, []);
 
   useEffect(() => {
-    if (!toast) {
-      return;
-    }
-
+    if (!toast) return;
     const timer = window.setTimeout(() => {
       setToast(null);
     }, 3500);
-
     return () => {
       window.clearTimeout(timer);
     };
   }, [toast]);
 
-  const openDriverDetails = (driver: Driver) => {
+  const openDriverDetails = (driver: ApiDriverItem) => {
     setSelectedDriver(driver);
-    setSelectedStatus(driver.accStatus);
-    setShowPassword(false);
+    setSelectedStatus(driver.status);
   };
 
   const closeDriverDetails = () => {
-    if (saving) {
-      return;
-    }
-
+    if (saving) return;
     setSelectedDriver(null);
-    setShowPassword(false);
   };
 
+  // 17. Update Driver Status
   const handleSaveChanges = async () => {
-    if (!selectedDriver || saving) {
-      return;
-    }
+    if (!selectedDriver || saving) return;
 
     try {
       setSaving(true);
 
-      const updatedDriver = await updateDriverStatus(
-        selectedDriver.id,
-        selectedStatus,
-      );
+      const targetId = selectedDriver.identityId || selectedDriver.id;
+      await adminApi.updateDriverStatus(targetId, selectedStatus);
 
-      /**
-       * Update the local table immediately.
-       * Later this can be replaced/combined with a fresh GET request.
-       */
+      // Update local state
       setDrivers((currentDrivers) =>
         currentDrivers.map((driver) =>
-          driver.id === updatedDriver.id
+          driver.id === selectedDriver.id
             ? {
                 ...driver,
-                accStatus: updatedDriver.accStatus,
+                status: selectedStatus,
               }
-            : driver,
-        ),
+            : driver
+        )
       );
 
-      /**
-       * IMPORTANT UX FLOW:
-       * 1. Save succeeds
-       * 2. Update table
-       * 3. Close modal
-       * 4. Show success toast
-       */
       setSelectedDriver(null);
-      setShowPassword(false);
-
       setToast({
         type: "success",
         message: "Driver status updated successfully.",
       });
-    } catch {
-      /**
-       * IMPORTANT:
-       * Modal intentionally remains open on error
-       * so the admin can review/correct the issue.
-       */
+    } catch (err: any) {
       setToast({
         type: "error",
-        message: "Failed to update driver status. Please try again.",
+        message:
+          err?.message || "Failed to update driver status. Please try again.",
       });
     } finally {
       setSaving(false);
     }
+  };
+
+  const formatVehicleType = (type?: string) => {
+    if (!type) return "Standard";
+    return type.replace(/_/g, " ");
   };
 
   return (
@@ -345,32 +208,53 @@ export default function DriversPage() {
               <h1 className="text-3xl font-bold tracking-tight">
                 Drivers Management
               </h1>
-
               <p className="mt-2 max-w-2xl text-sm text-[#94A3B8]">
-                View driver accounts, vehicle information, documents, and
-                manage account status.
+                Review registered towing drivers, inspect documents, and manage
+                operational accounts.
               </p>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-[#111827] px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-[#94A3B8]">
-                Total Drivers
-              </p>
-              <p className="mt-1 text-xl font-bold text-white">
-                {drivers.length}
-              </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={loadDrivers}
+                disabled={loading}
+                className="rounded-xl border border-white/10 bg-[#111827] px-4 py-3 text-sm text-[#CBD5E1] transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-white disabled:opacity-50"
+              >
+                {loading ? "Refreshing..." : "↻ Refresh"}
+              </button>
+
+              <div className="rounded-xl border border-white/10 bg-[#111827] px-4 py-3">
+                <p className="text-xs uppercase tracking-wide text-[#94A3B8]">
+                  Total Drivers
+                </p>
+                <p className="mt-1 text-xl font-bold text-white">
+                  {drivers.length}
+                </p>
+              </div>
             </div>
           </div>
         </div>
+
+        {error && (
+          <div className="mb-6 flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+            <span>{error}</span>
+            <button
+              onClick={loadDrivers}
+              className="font-medium underline hover:text-red-200"
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#111827] shadow-2xl shadow-black/10">
           <div className="border-b border-white/10 px-5 py-5 sm:px-6">
             <h2 className="text-lg font-semibold text-white">
               Drivers Overview
             </h2>
-
             <p className="mt-1 text-sm text-[#94A3B8]">
-              Review registered drivers and open their details.
+              Review registered drivers and update operational status.
             </p>
           </div>
 
@@ -378,9 +262,8 @@ export default function DriversPage() {
             <div className="flex min-h-64 items-center justify-center px-6">
               <div className="text-center">
                 <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-violet-400" />
-
                 <p className="mt-3 text-sm text-[#94A3B8]">
-                  Loading drivers...
+                  Loading drivers from API...
                 </p>
               </div>
             </div>
@@ -389,9 +272,8 @@ export default function DriversPage() {
               <p className="text-lg font-semibold text-white">
                 No drivers found
               </p>
-
               <p className="mt-2 text-sm text-[#94A3B8]">
-                There are currently no drivers available.
+                There are currently no drivers registered in the system.
               </p>
             </div>
           ) : (
@@ -402,27 +284,24 @@ export default function DriversPage() {
                     <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
                       Driver
                     </th>
-
                     <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
                       Phone
                     </th>
-
                     <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
                       Email
                     </th>
-
                     <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
                       Status
                     </th>
-
                     <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
                       Vehicle No.
                     </th>
-
                     <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
                       Vehicle Type
                     </th>
-
+                    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
+                      Duty
+                    </th>
                     <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-[#94A3B8]">
                       Actions
                     </th>
@@ -437,19 +316,24 @@ export default function DriversPage() {
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <img
-                            src={driver.profilePic}
-                            alt={driver.name}
-                            className="h-10 w-10 rounded-full border border-white/10 object-cover"
-                          />
+                          {driver.profile ? (
+                            <img
+                              src={driver.profile}
+                              alt={driver.name}
+                              className="h-10 w-10 rounded-full border border-white/10 object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10 font-bold text-violet-300">
+                              {(driver.name || "D").charAt(0).toUpperCase()}
+                            </div>
+                          )}
 
                           <div>
                             <p className="font-semibold text-white">
                               {driver.name}
                             </p>
-
                             <p className="mt-0.5 text-xs text-[#64748B]">
-                              {driver.id}
+                              ID: {driver.id}
                             </p>
                           </div>
                         </div>
@@ -464,15 +348,19 @@ export default function DriversPage() {
                       </td>
 
                       <td className="px-6 py-4">
-                        <StatusBadge status={driver.accStatus} />
+                        <StatusBadge status={driver.status} />
                       </td>
 
                       <td className="px-6 py-4 text-sm font-medium text-white">
-                        {driver.vehicleNo}
+                        {driver.vehicleNumber || "-"}
                       </td>
 
-                      <td className="px-6 py-4 text-sm text-[#CBD5E1]">
-                        {driver.vehicleType}
+                      <td className="px-6 py-4 text-sm capitalize text-[#CBD5E1]">
+                        {formatVehicleType(driver.vehicleType)}
+                      </td>
+
+                      <td className="px-6 py-4 text-xs font-semibold text-slate-300">
+                        {driver.dutyStatus || "OFFLINE"}
                       </td>
 
                       <td className="px-6 py-4 text-right">
@@ -481,7 +369,7 @@ export default function DriversPage() {
                           onClick={() => openDriverDetails(driver)}
                           className="inline-flex items-center rounded-lg border border-violet-400/20 bg-violet-400/10 px-4 py-2 text-sm font-semibold text-violet-300 transition hover:border-violet-400/40 hover:bg-violet-400/20 focus:outline-none focus:ring-2 focus:ring-violet-500/50"
                         >
-                          View
+                          Manage
                         </button>
                       </td>
                     </tr>
@@ -518,10 +406,7 @@ export default function DriversPage() {
                 <p className="text-sm font-semibold text-white">
                   {toast.type === "success" ? "Success" : "Error"}
                 </p>
-
-                <p className="mt-1 text-sm text-white/70">
-                  {toast.message}
-                </p>
+                <p className="mt-1 text-sm text-white/70">{toast.message}</p>
               </div>
 
               <button
@@ -555,9 +440,8 @@ export default function DriversPage() {
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 sm:px-6">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wider text-[#A78BFA]">
-                  Driver Details
+                  Driver Management
                 </p>
-
                 <h2
                   id="driver-details-title"
                   className="mt-1 text-xl font-bold text-white"
@@ -582,18 +466,23 @@ export default function DriversPage() {
               <div className="grid gap-6 lg:grid-cols-[180px_1fr]">
                 {/* Profile */}
                 <div className="flex flex-col items-center">
-                  <img
-                    src={selectedDriver.profilePic}
-                    alt={selectedDriver.name}
-                    className="h-32 w-32 rounded-2xl border border-white/10 object-cover shadow-lg"
-                  />
+                  {selectedDriver.profile ? (
+                    <img
+                      src={selectedDriver.profile}
+                      alt={selectedDriver.name}
+                      className="h-32 w-32 rounded-2xl border border-white/10 object-cover shadow-lg"
+                    />
+                  ) : (
+                    <div className="flex h-32 w-32 items-center justify-center rounded-2xl border border-white/10 bg-violet-500/10 text-4xl font-bold text-violet-300">
+                      {(selectedDriver.name || "D").charAt(0).toUpperCase()}
+                    </div>
+                  )}
 
                   <p className="mt-3 text-sm font-semibold text-white">
                     {selectedDriver.name}
                   </p>
-
-                  <p className="mt-1 text-xs text-[#64748B]">
-                    {selectedDriver.id}
+                  <p className="mt-1 break-all text-center font-mono text-[11px] text-[#64748B]">
+                    ID: {selectedDriver.id}
                   </p>
                 </div>
 
@@ -601,63 +490,56 @@ export default function DriversPage() {
                 <div className="grid gap-5 sm:grid-cols-2">
                   <DetailField
                     label="Full Name"
-                    value={selectedDriver.name}
+                    value={selectedDriver.name || "-"}
                   />
-
                   <DetailField
                     label="Email Address"
-                    value={selectedDriver.email}
+                    value={selectedDriver.email || "-"}
                   />
-
                   <DetailField
                     label="Phone Number"
-                    value={selectedDriver.phone}
+                    value={selectedDriver.phone || "-"}
                   />
-
-                  <div>
-                    <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[#94A3B8]">
-                      Password
-                    </p>
-
-                    <div className="flex items-center gap-2">
-                      <p className="font-mono text-sm font-medium text-white">
-                        {showPassword
-                          ? selectedDriver.password
-                          : "••••••••••"}
-                      </p>
-
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((value) => !value)}
-                        className="rounded-md px-2 py-1 text-xs font-medium text-violet-300 transition hover:bg-violet-400/10"
-                      >
-                        {showPassword ? "Hide" : "Show"}
-                      </button>
-                    </div>
-                  </div>
-
+                  <DetailField
+                    label="Identity ID"
+                    value={selectedDriver.identityId || "-"}
+                  />
                   <DetailField
                     label="Vehicle Type"
-                    value={selectedDriver.vehicleType}
+                    value={formatVehicleType(selectedDriver.vehicleType)}
                   />
-
                   <DetailField
                     label="Vehicle Number"
-                    value={selectedDriver.vehicleNo}
+                    value={selectedDriver.vehicleNumber || "-"}
+                  />
+                  <DetailField
+                    label="Duty Status"
+                    value={selectedDriver.dutyStatus || "OFFLINE"}
+                  />
+                  <DetailField
+                    label="Earnings"
+                    value={`Rs. ${selectedDriver.earnings || 0}`}
+                  />
+                  <DetailField
+                    label="Accepted Requests"
+                    value={String(selectedDriver.serviceReqAcc || 0)}
+                  />
+                  <DetailField
+                    label="Rejected Requests"
+                    value={String(selectedDriver.serviceReqRej || 0)}
                   />
                 </div>
               </div>
 
-              {/* Account Status */}
-              <div className="mt-8 rounded-xl border border-white/10 bg-[#0F172A] p-5">
+              {/* Account Status Update (API 17) */}
+              <div className="mt-8 rounded-xl border border-violet-500/20 bg-[#0F172A] p-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h3 className="text-sm font-semibold text-white">
-                      Account Status
+                      Update Account Status (API 17)
                     </h3>
-
-                    <p className="mt-1 text-xs text-[#64748B]">
-                      Update the driver account status.
+                    <p className="mt-1 text-xs text-[#94A3B8]">
+                      Change the driver&apos;s identity status in the system.
                     </p>
                   </div>
 
@@ -666,16 +548,15 @@ export default function DriversPage() {
                       value={selectedStatus}
                       onChange={(event) =>
                         setSelectedStatus(
-                          event.target.value as AccountStatus,
+                          event.target.value as IdentityStatus
                         )
                       }
                       disabled={saving}
                       className="w-full rounded-lg border border-white/10 bg-[#111827] px-3 py-2.5 text-sm font-medium text-white outline-none transition focus:border-violet-400/50 focus:ring-2 focus:ring-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="Active">Active / Approve</option>
-                      <option value="Suspended">Suspended</option>
-                      <option value="Rejected">Rejected</option>
+                      <option value="PENDING">Pending (PENDING)</option>
+                      <option value="ACTIVE">Active / Approve (ACTIVE)</option>
+                      <option value="DEACTIVE">Deactivate (DEACTIVE)</option>
                     </select>
                   </div>
                 </div>
@@ -687,35 +568,36 @@ export default function DriversPage() {
                   <h3 className="text-sm font-semibold text-white">
                     Driver Documents
                   </h3>
-
                   <p className="mt-1 text-xs text-[#64748B]">
-                    Click any document to view it in full size.
+                    Click any document to inspect it in full resolution.
                   </p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">
                   <DocumentPreview
                     label="CNIC"
-                    image={selectedDriver.cnicImage}
-                    onClick={() =>
-                      setLightboxImage(selectedDriver.cnicImage)
-                    }
+                    image={selectedDriver.cnic}
+                    onClick={() => {
+                      if (selectedDriver.cnic) setLightboxImage(selectedDriver.cnic);
+                    }}
                   />
 
                   <DocumentPreview
                     label="Driving License"
-                    image={selectedDriver.licenseImage}
-                    onClick={() =>
-                      setLightboxImage(selectedDriver.licenseImage)
-                    }
+                    image={selectedDriver.license}
+                    onClick={() => {
+                      if (selectedDriver.license)
+                        setLightboxImage(selectedDriver.license);
+                    }}
                   />
 
                   <DocumentPreview
                     label="Vehicle Papers"
-                    image={selectedDriver.vehiclePapersImage}
-                    onClick={() =>
-                      setLightboxImage(selectedDriver.vehiclePapersImage)
-                    }
+                    image={selectedDriver.vehiclePaper}
+                    onClick={() => {
+                      if (selectedDriver.vehiclePaper)
+                        setLightboxImage(selectedDriver.vehiclePaper);
+                    }}
                   />
                 </div>
               </div>
@@ -741,10 +623,10 @@ export default function DriversPage() {
                 {saving ? (
                   <>
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                    Saving...
+                    Saving changes...
                   </>
                 ) : (
-                  "Save Changes"
+                  "Update Status"
                 )}
               </button>
             </div>
