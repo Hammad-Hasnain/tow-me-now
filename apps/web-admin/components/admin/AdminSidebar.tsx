@@ -143,16 +143,28 @@ export function AdminSidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-white/10 px-4 py-5">
+        <div className="border-t border-white/10 px-4 py-5 space-y-3">
           <div className="rounded-xl bg-white/5 px-4 py-3">
-            <p className="text-xs font-medium text-white">
-              Admin Dashboard
+            <p className="text-xs font-semibold text-white">
+              Super Admin
             </p>
-
-            <p className="mt-1 text-[11px] text-[#64748B]">
-              Tow Me Now Management
+            <p className="mt-0.5 text-[11px] text-emerald-400">
+              ● Online Session
             </p>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              sessionStorage.clear();
+              localStorage.clear();
+              window.location.href = "/admin/login";
+            }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs font-semibold text-red-300 transition hover:bg-red-500/20 hover:text-white"
+          >
+            <span>🚪</span>
+            <span>Sign Out</span>
+          </button>
         </div>
       </div>
     </aside>

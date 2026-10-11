@@ -1,160 +1,24 @@
 "use client";
 
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { useState } from "react";
-
-type RequestStatus =
-  | "Pending"
-  | "Accepted"
-  | "In Progress"
-  | "Completed"
-  | "Cancelled";
-
-const dashboardStats = {
-  totalDrivers: 124,
-  totalServiceRequests: 486,
-  totalUsers: 1284,
-};
-
-const driverStatus = [
-  { label: "Active", value: 82 },
-  { label: "Pending", value: 18 },
-  { label: "Suspended", value: 12 },
-  { label: "Rejected", value: 12 },
-];
-
-const requestStatus = [
-  { label: "Pending", value: 42 },
-  { label: "Accepted", value: 31 },
-  { label: "In Progress", value: 18 },
-  { label: "Completed", value: 362 },
-  { label: "Cancelled", value: 33 },
-];
-
-const recentRequests: {
-  id: string;
-  customer: string;
-  driver: string;
-  vehicle: string;
-  location: string;
-  status: RequestStatus;
-  date: string;
-}[] = [
-  {
-    id: "REQ-1048",
-    customer: "Ahmed Khan",
-    driver: "Ali Raza",
-    vehicle: "Toyota Hilux",
-    location: "Gulshan-e-Iqbal",
-    status: "Completed",
-    date: "Oct 07, 2026",
-  },
-  {
-    id: "REQ-1047",
-    customer: "Usman Tariq",
-    driver: "Hamza Ahmed",
-    vehicle: "Isuzu D-Max",
-    location: "DHA Phase 6",
-    status: "In Progress",
-    date: "Oct 07, 2026",
-  },
-  {
-    id: "REQ-1046",
-    customer: "Bilal Ahmed",
-    driver: "Pending",
-    vehicle: "Suzuki Ravi",
-    location: "North Nazimabad",
-    status: "Pending",
-    date: "Oct 06, 2026",
-  },
-  {
-    id: "REQ-1045",
-    customer: "Hassan Ali",
-    driver: "Farhan Khan",
-    vehicle: "Toyota Revo",
-    location: "Clifton",
-    status: "Accepted",
-    date: "Oct 06, 2026",
-  },
-  {
-    id: "REQ-1044",
-    customer: "Saad Mahmood",
-    driver: "Adeel Shah",
-    vehicle: "Nissan Pickup",
-    location: "PECHS",
-    status: "Completed",
-    date: "Oct 05, 2026",
-  },
-];
-
-const recentDrivers = [
-  {
-    name: "Ali Raza",
-    email: "ali.raza@example.com",
-    vehicle: "Toyota Hilux",
-    status: "Active",
-  },
-  {
-    name: "Hamza Ahmed",
-    email: "hamza.ahmed@example.com",
-    vehicle: "Isuzu D-Max",
-    status: "Active",
-  },
-  {
-    name: "Farhan Khan",
-    email: "farhan.khan@example.com",
-    vehicle: "Toyota Revo",
-    status: "Pending",
-  },
-  {
-    name: "Adeel Shah",
-    email: "adeel.shah@example.com",
-    vehicle: "Nissan Pickup",
-    status: "Active",
-  },
-];
-
-const activities = [
-  {
-    title: "New driver registration",
-    description: "Farhan Khan submitted a driver application.",
-    time: "15 minutes ago",
-  },
-  {
-    title: "Service request completed",
-    description: "REQ-1048 was marked as completed.",
-    time: "32 minutes ago",
-  },
-  {
-    title: "Driver account activated",
-    description: "Adeel Shah's account was activated.",
-    time: "1 hour ago",
-  },
-  {
-    title: "New service request",
-    description: "REQ-1047 was created by Usman Tariq.",
-    time: "2 hours ago",
-  },
-];
-
-const statusClasses: Record<RequestStatus | string, string> = {
-  Pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  Accepted: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  "In Progress": "bg-violet-500/10 text-violet-400 border-violet-500/20",
-  Completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  Cancelled: "bg-red-500/10 text-red-400 border-red-500/20",
-  Active: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-};
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  adminApi,
+  DashboardAnalytics,
+  ApiServiceRequestItem,
+  ApiDriverItem,
+} from "@/lib/api/admin";
 
 function StatCard({
   title,
   value,
-  growth,
+  subLabel,
   icon,
 }: {
   title: string;
   value: number;
-  growth: number;
+  subLabel: string;
   icon: string;
 }) {
   return (
@@ -173,21 +37,30 @@ function StatCard({
       </div>
 
       <div className="mt-5 flex items-center gap-2">
-        <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-400">
-          +{growth}%
+        <span className="rounded-md bg-violet-500/10 px-2 py-1 text-xs font-semibold text-violet-300">
+          {subLabel}
         </span>
-        <span className="text-xs text-[#64748B]">vs last month</span>
       </div>
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const isGood = ["ACTIVE", "COMPLETED", "ACCEPTED"].includes(status.toUpperCase());
+  const isWarning = ["PENDING", "ARRIVED", "TOWING"].includes(status.toUpperCase());
+  const isBad = ["DEACTIVE", "REJECTED", "CANCELLED"].includes(status.toUpperCase());
+
+  const cls = isGood
+    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+    : isWarning
+    ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+    : isBad
+    ? "bg-red-500/10 text-red-400 border-red-500/20"
+    : "border-white/10 bg-white/5 text-slate-300";
+
   return (
     <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${
-        statusClasses[status] || "border-white/10 bg-white/5 text-slate-300"
-      }`}
+      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-wider ${cls}`}
     >
       {status}
     </span>
@@ -195,9 +68,70 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function DashboardPage() {
-  const [selectedRequest, setSelectedRequest] = useState<
-    (typeof recentRequests)[number] | null
-  >(null);
+  const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
+  const [recentRequests, setRecentRequests] = useState<ApiServiceRequestItem[]>([]);
+  const [recentDrivers, setRecentDrivers] = useState<ApiDriverItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [selectedRequest, setSelectedRequest] =
+    useState<ApiServiceRequestItem | null>(null);
+
+  const loadDashboardData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [analyticsData, requestsData, driversData] = await Promise.all([
+        adminApi.getDashboardAnalytics(),
+        adminApi.getServiceRequests().catch(() => []),
+        adminApi.getDrivers().catch(() => []),
+      ]);
+
+      setAnalytics(analyticsData);
+      setRecentRequests(Array.isArray(requestsData) ? requestsData.slice(0, 5) : []);
+      setRecentDrivers(Array.isArray(driversData) ? driversData.slice(0, 4) : []);
+    } catch (err: any) {
+      setError(err?.message || "Failed to load dashboard data from backend.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const totalDrivers = analytics?.drivers?.total || 0;
+  const totalRequests = analytics?.serviceRequests?.total || 0;
+  const totalUsers = analytics?.users?.total || 0;
+
+  const driverBreakdown = [
+    { label: "Active", value: analytics?.drivers?.active || 0 },
+    { label: "Pending", value: analytics?.drivers?.pending || 0 },
+    { label: "Deactivated", value: analytics?.drivers?.deactivated || 0 },
+  ];
+
+  const requestBreakdown = [
+    { label: "Pending", value: analytics?.serviceRequests?.pending || 0 },
+    { label: "Accepted", value: analytics?.serviceRequests?.accepted || 0 },
+    { label: "Arrived", value: analytics?.serviceRequests?.arrived || 0 },
+    { label: "Towing", value: analytics?.serviceRequests?.towing || 0 },
+    { label: "Completed", value: analytics?.serviceRequests?.completed || 0 },
+    { label: "Cancelled / Rejected", value: (analytics?.serviceRequests?.cancelled || 0) + (analytics?.serviceRequests?.rejected || 0) },
+  ];
+
+  const formatDate = (dateStr?: string | Date) => {
+    if (!dateStr) return "-";
+    try {
+      return new Date(dateStr).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return String(dateStr);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[#0F172A] text-white lg:pl-64">
@@ -214,63 +148,87 @@ export default function DashboardPage() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
               <p className="mt-2 text-[#94A3B8]">
-                Monitor your towing platform and manage daily operations.
+                Real-time operational analytics and overview of Tow Me Now platform.
               </p>
             </div>
 
-            <div className="rounded-lg border border-white/10 bg-[#111827] px-4 py-2 text-sm text-[#94A3B8]">
-              Last updated: <span className="text-white">Just now</span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={loadDashboardData}
+                disabled={loading}
+                className="rounded-xl border border-white/10 bg-[#111827] px-4 py-2.5 text-sm text-[#CBD5E1] transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-white disabled:opacity-50"
+              >
+                {loading ? "Refreshing..." : "↻ Refresh"}
+              </button>
+
+              <div className="rounded-lg border border-white/10 bg-[#111827] px-4 py-2 text-sm text-[#94A3B8]">
+                Status: <span className="font-semibold text-emerald-400">Live API</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Primary Stats */}
+        {error && (
+          <div className="mb-6 flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+            <span>{error}</span>
+            <button
+              onClick={loadDashboardData}
+              className="font-medium underline hover:text-red-200"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Primary Stats (API 16) */}
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           <StatCard
-            title="Total Drivers"
-            value={dashboardStats.totalDrivers}
-            growth={8.2}
+            title="Total Registered Drivers"
+            value={totalDrivers}
+            subLabel={`${analytics?.drivers?.active || 0} active on platform`}
             icon="🚚"
           />
 
           <StatCard
             title="Total Service Requests"
-            value={dashboardStats.totalServiceRequests}
-            growth={12.5}
+            value={totalRequests}
+            subLabel={`${analytics?.serviceRequests?.completed || 0} completed orders`}
             icon="🛠️"
           />
 
           <StatCard
-            title="Total Users"
-            value={dashboardStats.totalUsers}
-            growth={6.4}
+            title="Total App Users"
+            value={totalUsers}
+            subLabel={`${analytics?.users?.active || 0} active accounts`}
             icon="👥"
           />
         </div>
 
-        {/* Status Overview */}
+        {/* Status Overview (API 16 Analytics Breakdown) */}
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           {/* Drivers */}
           <div className="rounded-2xl border border-white/10 bg-[#111827] p-6">
             <div className="mb-6">
-              <h2 className="text-lg font-semibold">Driver Status</h2>
+              <h2 className="text-lg font-semibold">Driver Status Breakdown</h2>
               <p className="mt-1 text-sm text-[#64748B]">
-                Current driver account overview
+                Current driver account overview from backend
               </p>
             </div>
 
             <div className="space-y-5">
-              {driverStatus.map((item) => {
-                const percentage = Math.round(
-                  (item.value / dashboardStats.totalDrivers) * 100,
-                );
+              {driverBreakdown.map((item) => {
+                const percentage =
+                  totalDrivers > 0
+                    ? Math.round((item.value / totalDrivers) * 100)
+                    : 0;
 
                 return (
                   <div key={item.label}>
                     <div className="mb-2 flex items-center justify-between text-sm">
                       <span className="text-[#CBD5E1]">{item.label}</span>
                       <span className="font-medium text-white">
-                        {item.value}
+                        {item.value} ({percentage}%)
                       </span>
                     </div>
 
@@ -289,14 +247,14 @@ export default function DashboardPage() {
           {/* Service Requests */}
           <div className="rounded-2xl border border-white/10 bg-[#111827] p-6">
             <div className="mb-6">
-              <h2 className="text-lg font-semibold">Service Requests</h2>
+              <h2 className="text-lg font-semibold">Service Request Lifecycle</h2>
               <p className="mt-1 text-sm text-[#64748B]">
-                Current request status overview
+                Summary of request stages in database
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {requestStatus.map((item) => (
+              {requestBreakdown.map((item) => (
                 <div
                   key={item.label}
                   className="rounded-xl border border-white/5 bg-[#0F172A] p-4"
@@ -309,22 +267,22 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent Requests */}
+        {/* Recent Requests Table */}
         <div className="mt-6 rounded-2xl border border-white/10 bg-[#111827]">
           <div className="flex flex-col justify-between gap-3 border-b border-white/10 p-6 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-lg font-semibold">Recent Service Requests</h2>
               <p className="mt-1 text-sm text-[#64748B]">
-                Latest towing service activity
+                Latest towing service activity from API
               </p>
             </div>
 
-            <button
-              type="button"
+            <Link
+              href="/admin/service-requests"
               className="text-sm font-medium text-violet-400 transition hover:text-violet-300"
             >
               View all requests →
-            </button>
+            </Link>
           </div>
 
           <div className="overflow-x-auto">
@@ -352,124 +310,115 @@ export default function DashboardPage() {
               </thead>
 
               <tbody>
-                {recentRequests.map((request) => (
-                  <tr
-                    key={request.id}
-                    className="border-b border-white/5 transition hover:bg-white/[0.02]"
-                  >
-                    <td className="px-6 py-4 font-medium text-violet-400">
-                      {request.id}
-                    </td>
+                {recentRequests.length > 0 ? (
+                  recentRequests.map((request) => (
+                    <tr
+                      key={request.id}
+                      className="border-b border-white/5 transition hover:bg-white/[0.02]"
+                    >
+                      <td className="px-6 py-4 font-mono font-medium text-violet-400">
+                        {request.id?.slice(0, 8)}...
+                      </td>
 
-                    <td className="px-6 py-4 text-[#CBD5E1]">
-                      {request.customer}
-                    </td>
+                      <td className="px-6 py-4 text-[#CBD5E1]">
+                        {request.userName || "Customer"}
+                      </td>
 
-                    <td className="px-6 py-4 text-[#CBD5E1]">
-                      {request.driver}
-                    </td>
+                      <td className="px-6 py-4 text-[#CBD5E1]">
+                        {request.driverName || "Not assigned"}
+                      </td>
 
-                    <td className="px-6 py-4 text-[#CBD5E1]">
-                      {request.vehicle}
-                    </td>
+                      <td className="px-6 py-4 text-[#CBD5E1]">
+                        {request.vehicle} {request.model ? `(${request.model})` : ""}
+                      </td>
 
-                    <td className="px-6 py-4 text-[#94A3B8]">
-                      {request.location}
-                    </td>
+                      <td className="max-w-[200px] truncate px-6 py-4 text-[#94A3B8]">
+                        {request.pickupLoc?.address || "-"}
+                      </td>
 
-                    <td className="px-6 py-4">
-                      <StatusBadge status={request.status} />
-                    </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={request.status} />
+                      </td>
 
-                    <td className="px-6 py-4 text-[#94A3B8]">
-                      {request.date}
-                    </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-[#94A3B8]">
+                        {formatDate(request.createdAt)}
+                      </td>
 
-                    <td className="px-6 py-4">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRequest(request)}
-                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-[#CBD5E1] transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-white"
-                      >
-                        View
-                      </button>
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRequest(request)}
+                          className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-[#CBD5E1] transition hover:border-violet-500/40 hover:bg-violet-500/10 hover:text-white"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-12 text-center text-[#64748B]">
+                      {loading ? "Loading requests..." : "No service requests recorded yet."}
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Bottom Sections */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          {/* Recent Drivers */}
-          <div className="rounded-2xl border border-white/10 bg-[#111827]">
-            <div className="border-b border-white/10 p-6">
-              <h2 className="text-lg font-semibold">Recent Drivers</h2>
+        {/* Bottom Sections: Recent Drivers */}
+        <div className="mt-6 rounded-2xl border border-white/10 bg-[#111827]">
+          <div className="flex items-center justify-between border-b border-white/10 p-6">
+            <div>
+              <h2 className="text-lg font-semibold">Registered Drivers</h2>
               <p className="mt-1 text-sm text-[#64748B]">
-                Latest registered drivers
+                Active & pending drivers on the system
               </p>
             </div>
+            <Link
+              href="/admin/drivers"
+              className="text-sm font-medium text-violet-400 transition hover:text-violet-300"
+            >
+              Manage all drivers →
+            </Link>
+          </div>
 
-            <div className="divide-y divide-white/5">
-              {recentDrivers.map((driver) => (
+          <div className="divide-y divide-white/5">
+            {recentDrivers.length > 0 ? (
+              recentDrivers.map((driver) => (
                 <div
-                  key={driver.email}
+                  key={driver.id}
                   className="flex items-center justify-between gap-4 p-5"
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-500/10 font-semibold text-violet-300">
-                      {driver.name.charAt(0)}
+                      {(driver.name || "D").charAt(0).toUpperCase()}
                     </div>
 
                     <div className="min-w-0">
                       <p className="truncate font-medium">{driver.name}</p>
                       <p className="truncate text-xs text-[#64748B]">
-                        {driver.email}
+                        {driver.email || driver.phone}
                       </p>
                     </div>
                   </div>
 
-                  <div className="hidden text-right sm:block">
-                    <p className="text-sm text-[#CBD5E1]">{driver.vehicle}</p>
+                  <div className="text-right">
+                    <p className="text-sm text-[#CBD5E1]">
+                      {driver.vehicleNumber || driver.vehicleType}
+                    </p>
                     <div className="mt-1">
                       <StatusBadge status={driver.status} />
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Activity */}
-          <div className="rounded-2xl border border-white/10 bg-[#111827]">
-            <div className="border-b border-white/10 p-6">
-              <h2 className="text-lg font-semibold">Platform Activity</h2>
-              <p className="mt-1 text-sm text-[#64748B]">
-                Recent platform events
+              ))
+            ) : (
+              <p className="p-6 text-sm text-[#64748B]">
+                {loading ? "Loading drivers..." : "No drivers registered yet."}
               </p>
-            </div>
-
-            <div className="divide-y divide-white/5">
-              {activities.map((activity) => (
-                <div key={activity.title} className="flex gap-4 p-5">
-                  <div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-violet-500" />
-
-                  <div>
-                    <p className="text-sm font-medium text-white">
-                      {activity.title}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-[#64748B]">
-                      {activity.description}
-                    </p>
-                    <p className="mt-2 text-xs text-[#475569]">
-                      {activity.time}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            )}
           </div>
         </div>
       </section>
@@ -483,7 +432,7 @@ export default function DashboardPage() {
                 <p className="text-xs uppercase tracking-wider text-violet-400">
                   Service Request
                 </p>
-                <h2 className="mt-1 text-xl font-semibold">
+                <h2 className="mt-1 font-mono text-lg font-semibold">
                   {selectedRequest.id}
                 </h2>
               </div>
@@ -501,21 +450,23 @@ export default function DashboardPage() {
               <div>
                 <p className="text-xs text-[#64748B]">Customer</p>
                 <p className="mt-1 text-sm font-medium">
-                  {selectedRequest.customer}
+                  {selectedRequest.userName || "-"}
                 </p>
+                <p className="text-xs text-[#64748B]">{selectedRequest.userPhone}</p>
               </div>
 
               <div>
                 <p className="text-xs text-[#64748B]">Driver</p>
                 <p className="mt-1 text-sm font-medium">
-                  {selectedRequest.driver}
+                  {selectedRequest.driverName || "Not assigned"}
                 </p>
+                <p className="text-xs text-[#64748B]">{selectedRequest.driverPhone}</p>
               </div>
 
               <div>
                 <p className="text-xs text-[#64748B]">Vehicle</p>
                 <p className="mt-1 text-sm font-medium">
-                  {selectedRequest.vehicle}
+                  {selectedRequest.vehicle} {selectedRequest.model ? `(${selectedRequest.model})` : ""}
                 </p>
               </div>
 
@@ -527,16 +478,30 @@ export default function DashboardPage() {
               </div>
 
               <div className="sm:col-span-2">
-                <p className="text-xs text-[#64748B]">Location</p>
+                <p className="text-xs text-[#64748B]">Pickup Location</p>
                 <p className="mt-1 text-sm font-medium">
-                  {selectedRequest.location}
+                  {selectedRequest.pickupLoc?.address || "-"}
+                </p>
+              </div>
+
+              <div className="sm:col-span-2">
+                <p className="text-xs text-[#64748B]">Drop-off Location</p>
+                <p className="mt-1 text-sm font-medium">
+                  {selectedRequest.dropoffLoc?.address || "-"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs text-[#64748B]">Fare</p>
+                <p className="mt-1 text-sm font-bold text-emerald-400">
+                  Rs. {selectedRequest.fare || 0}
                 </p>
               </div>
 
               <div>
                 <p className="text-xs text-[#64748B]">Request Date</p>
                 <p className="mt-1 text-sm font-medium">
-                  {selectedRequest.date}
+                  {formatDate(selectedRequest.createdAt)}
                 </p>
               </div>
             </div>

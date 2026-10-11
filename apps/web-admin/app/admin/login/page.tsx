@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { adminApi } from "@/lib/api/admin";
+
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -13,13 +15,33 @@ export default function AdminLoginPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (isLoading) return;
+
     setIsLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    try {
+      const data = await adminApi.login({
+        email,
+        password,
+      });
 
-    toast.info("Login API is not connected yet.");
+      if (data?.user?.role !== "ADMIN") {
+        adminApi.logout();
+        toast.error("This account is not authorized for admin access.");
+        return;
+      }
 
-    setIsLoading(false);
+      sessionStorage.setItem("adminUser", JSON.stringify(data.user));
+      localStorage.setItem("adminUser", JSON.stringify(data.user));
+
+      toast.success("Login successful!");
+
+      window.location.href = "/admin/dashboard";
+    } catch (error: any) {
+      toast.error(error?.message || "Login failed. Please check your credentials.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -64,6 +86,7 @@ export default function AdminLoginPage() {
               onChange={(event) => setEmail(event.target.value)}
               autoComplete="email"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -83,6 +106,7 @@ export default function AdminLoginPage() {
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password"
               required
+              disabled={isLoading}
             />
           </div>
 
