@@ -54,25 +54,25 @@ login: async (credentials: any) => {
       }
 
       return data;
-    } catch (error: any) {
-      // Backend se aane wala exact message nikalna (e.g., 403 Forbidden under review message)
-      const errorData = error.response?.data;
-      
-      let errorMessage = 'Login failed';
-      if (errorData) {
-        if (typeof errorData === 'string') {
-          errorMessage = errorData;
-        } else if (errorData.message) {
-          // Agar message array ya string ki shakal mein ho
-          errorMessage = Array.isArray(errorData.message) 
-            ? errorData.message[0] 
-            : errorData.message;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      throw errorMessage; // Yeh exact message catch block mein string ban kar jayega
+   } catch (error: any) {
+  const status = error.response?.status; // e.g., 403, 401, etc.
+  const errorData = error.response?.data;
+  
+  let errorMessage = 'Login failed';
+  if (errorData) {
+    if (typeof errorData === 'string') {
+      errorMessage = errorData;
+    } else if (errorData.message) {
+      errorMessage = Array.isArray(errorData.message) 
+        ? errorData.message[0] 
+        : errorData.message;
     }
+  } else if (error.message) {
+    errorMessage = error.message;
+  }
+
+  // Status code aur message dono aik object mein throw karein
+  throw { status, message: errorMessage };
+}
   },
 };

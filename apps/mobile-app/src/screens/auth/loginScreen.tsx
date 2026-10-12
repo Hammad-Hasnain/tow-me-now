@@ -245,7 +245,8 @@ const handleLogin = async () => {
             Toast.show({
                 type: 'error',
                 text1: 'Access Denied',
-                text2: typeof error === 'string' ? error : 'Invalid email or password',
+                // text2: typeof error === 'string' ? error : 'Invalid email or password',
+                text2: error.message,
                 visibilityTime: 4000, // Thoda zyada time taake user message parh sake
             });
         } finally {

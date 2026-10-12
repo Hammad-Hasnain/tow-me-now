@@ -22,6 +22,7 @@ const requestId = requestDetails?.id;
 
     const [driversList, setDriversList] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [assigning, setAssigning] = useState(false);
 
     // API Call to fetch available drivers
     useEffect(() => {
@@ -49,9 +50,37 @@ const requestId = requestDetails?.id;
 
         fetchAvailableDrivers();
     }, [requestId]);
+const handleSelectDriver = async (driver: any) => {
+        if (!requestId) {
+            Alert.alert('Error', 'Service Request ID is missing.');
+            return;
+        }
 
-    const handleSelectDriver = (driver: any) => {
-        navigation.navigate('DriverStatus', { driver });
+        try {
+            setAssigning(true);
+
+            // Image ki API requirement ke mutabiq payload
+            const payload = {
+                driverId: driver.driverId, // Driver object se driverId
+                fare: driver.fare,         // Driver object se fare
+            };
+
+            console.log("Assigning Driver Payload:", payload);
+
+            const response = await serviceRequestService.assignDriver(requestId, payload);
+            console.log("Assign Driver Response:", response);
+
+            Alert.alert('Success', `Driver ${driver.driverName || 'Partner'} assigned successfully!`);
+
+            // Next screen par navigate karein (e.g. Driver Status / Enroute screen)
+            navigation.navigate('UserHomeScreen', { driver, response });
+
+        } catch (error: any) {
+            console.log("Assign Driver Error:", error);
+            Alert.alert('Failed', error?.message || 'Could not assign driver.');
+        } finally {
+            setAssigning(false);
+        }
     };
 
     return (
@@ -78,7 +107,7 @@ const requestId = requestDetails?.id;
                             <View key={driver.id} style={styles.driverCard}>
                                 <View style={styles.driverHeader}>
                                     <Text style={styles.driverName}>{driver.name}</Text>
-                                    <Text style={styles.fareText}>{driver.fare}</Text>
+                                    <Text style={styles.fareText}>{driver.fare} RS.</Text>
                                 </View>
                                 <Text style={styles.driverSub}>📞 {driver.phone}</Text>
                                 <Text style={styles.driverSub}>🚚 {driver.vehicle} ({driver.vehicleNo})</Text>

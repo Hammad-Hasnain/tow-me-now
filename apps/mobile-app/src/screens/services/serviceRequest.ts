@@ -18,6 +18,12 @@ export interface ServiceRequestPayload {
     };
 }
 
+// 1. Payload ka interface banayein
+export interface AssignDriverPayload {
+    driverId: string;
+    fare: number; // ya agar backend string leta hai toh (number | string)
+}
+
 export const serviceRequestService = {
     createRequest: async (payload: ServiceRequestPayload) => {
         try {
@@ -39,4 +45,13 @@ export const serviceRequestService = {
             throw errorMsg;
         }
     },
+
+   assignDriver: async (requestId: string, payload: AssignDriverPayload): Promise<any> => {
+  try {
+    const response = await apiClient.patch(`/service-request/${requestId}/assign`, payload);
+    return response.data ? response.data : response;
+  } catch (error) {
+    throw error;
+  }
+}
 };

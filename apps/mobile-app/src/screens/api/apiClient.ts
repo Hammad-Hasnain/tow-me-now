@@ -15,7 +15,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     // Yahan AsyncStorage se token nikal kar header mein add kar sakte hain
-    const token = await AsyncStorage.getItem('userToken');
+    const token = await AsyncStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -32,23 +32,38 @@ apiClient.interceptors.response.use(
     // Backend se aane wale successful response ko directly return karein ya data extract karein
     return response.data;
   },
-  (error) => {
-    // Backend se aane wale error ko properly handle karna
+(error) => {
     if (error.response) {
-      // Server ne response diya lekin status code 2xx ki range mein nahi hai
       console.error('API Error Response:', error.response.data);
       
-      // Backend ke custom error message ya default message ko throw karein
-      const errorMessage = error.response.data?.message || error.response.data || 'Something went wrong on the server.';
-      return Promise.reject(errorMessage);
+      const errorData = error.response.data;
+      let errorMessage = 'Something went wrong on the server.';
+      
+      if (typeof errorData === 'string') {
+        errorMessage = errorData;
+      } else if (errorData?.message) {
+        errorMessage = Array.isArray(errorData.message) 
+          ? errorData.message[0] 
+          : errorData.message;
+      }
+
+      // Status code aur message dono aik object ki shakal mein reject karein
+      return Promise.reject({
+        status: error.response.status,
+        message: errorMessage,
+      });
     } else if (error.request) {
-      // Request bheji gayi lekin koi response nahi mila (Network error / Backend off hai)
       console.error('Network Error:', error.request);
-      return Promise.reject('Network error! Please check if your backend server is running and adb reverse is active.');
+      return Promise.reject({
+        status: null,
+        message: 'Network error! Please check if your backend server is running.',
+      });
     } else {
-      // Request setup karte waqt koi error aa gaya ho
       console.error('Error Message:', error.message);
-      return Promise.reject(error.message);
+      return Promise.reject({
+        status: null,
+        message: error.message,
+      });
     }
   }
 );

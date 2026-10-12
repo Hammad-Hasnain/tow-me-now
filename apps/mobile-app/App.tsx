@@ -58,6 +58,8 @@ export default function App() {
         <Stack.Screen name="DriverEnrouteScreen" component={DriverEnrouteScreen} />
         <Stack.Screen name="VehicleAccountSettings" component={VehicleAccountSettScreen} />
       </Stack.Navigator>
+
+      <Toast />
     </NavigationContainer>
   );
 }
