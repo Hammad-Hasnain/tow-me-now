@@ -143,19 +143,45 @@ useEffect(() => {
   }, []);
 
 
-  const handleAccept = () => {
-    setHasRequest(false);
-    setIsDrawerOpen(false); // Drawer state ko close karein
+  const handleAccept = async (item: ServiceRequestItem) => {
+    try {
+      console.log("Accepting service request:", item.id);
+      const response: any = await apiClient.patch(`/service-request/${item.id}/decision`, {
+        decision: 'ACCEPT',
+      });
+      console.log("Accept Response:", response);
 
-    // Standard Navigation
-    navigation.navigate('DriverEnrouteScreen', {
-      request: mockRequest,
-    });
-  };
-  const handleReject = () => {
-    setHasRequest(false);
+      setHasRequest(false);
+      setIsDrawerOpen(false);
+
+      // Navigation mein item pass kar sakte hain
+      navigation.navigate('DriverEnrouteScreen', {
+        request: item,
+      });
+    } catch (error: any) {
+      console.log("Error accepting request:", error);
+      Alert.alert('Error', error?.response?.data?.message || 'Could not accept the request.');
+    }
   };
 
+  const handleReject = async (item: ServiceRequestItem) => {
+    try {
+      console.log("Rejecting service request:", item.id);
+      const response: any = await apiClient.patch(`/service-request/${item.id}/decision`, {
+        decision: 'REJECT',
+      });
+      console.log("Reject Response:", response);
+
+      // List se item hata dein ya state refresh karein
+      setIncomingRequest((prev) => prev.filter((req) => req.id !== item.id));
+      if (incomingRequest.length <= 1) {
+        setHasRequest(false);
+      }
+    } catch (error: any) {
+      console.log("Error rejecting request:", error);
+      Alert.alert('Error', error?.response?.data?.message || 'Could not reject the request.');
+    }
+  };
 
   const handleToggleDuty = async (newVal: boolean) => {
     setLoadingToggle(true);
@@ -221,7 +247,24 @@ useEffect(() => {
     );
   };
 
+const handleLogout = async () => {
+  try {
+    // 1. AsyncStorage se token remove karein
+    await AsyncStorage.removeItem('accessToken');
+    
+    // Optional: Agar aap contextual state reset kar rahe hain
+    // setIsDrawerOpen(false);
 
+    // 2. Navigation reset karke Login screen par bhejein
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+    Alert.alert("Logout Error", "Something went wrong while logging out.");
+  }
+};
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0B0F19' }}>
@@ -422,14 +465,15 @@ useEffect(() => {
                 </View>
 
                 {/* Action Buttons */}
-                <View style={styles.actionRow}>
-                  <TouchableOpacity style={styles.rejectBtn} onPress={handleReject}>
-                    <Text style={styles.rejectBtnText}>Reject</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.acceptBtn} onPress={handleAccept}>
-                    <Text style={styles.acceptBtnText}>Accept Request</Text>
-                  </TouchableOpacity>
-                </View>
+                {/* Action Buttons */}
+<View style={styles.actionRow}>
+  <TouchableOpacity style={styles.rejectBtn} onPress={() => handleReject(item)}>
+    <Text style={styles.rejectBtnText}>Reject</Text>
+  </TouchableOpacity>
+  <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAccept(item)}>
+    <Text style={styles.acceptBtnText}>Accept Request</Text>
+  </TouchableOpacity>
+</View>
               </View>
             ))}
 
@@ -482,6 +526,13 @@ useEffect(() => {
                 }}>
 
                 <Text style={styles.drawerItemText}>⚙️ Profile & Account Settings</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.drawerItem} onPress={() => {
+    setIsDrawerOpen(false);
+    handleLogout();
+  }}>
+                <Text style={styles.drawerItemText}>📜 logout</Text>
               </TouchableOpacity>
             </View>
           </View>

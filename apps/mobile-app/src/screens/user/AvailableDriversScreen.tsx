@@ -55,8 +55,7 @@ const handleSelectDriver = async (driver: any) => {
             Alert.alert('Error', 'Service Request ID is missing.');
             return;
         }
-
-        try {
+try {
             setAssigning(true);
 
             // Image ki API requirement ke mutabiq payload
@@ -70,10 +69,13 @@ const handleSelectDriver = async (driver: any) => {
             const response = await serviceRequestService.assignDriver(requestId, payload);
             console.log("Assign Driver Response:", response);
 
-            Alert.alert('Success', `Driver ${driver.driverName || 'Partner'} assigned successfully!`);
+            // Yeh check ensure karega ke response milne par hi aage barhein
+            if (response) {
+                Alert.alert('Success', `Driver ${driver.driverName || 'Partner'} assigned successfully!`);
 
-            // Next screen par navigate karein (e.g. Driver Status / Enroute screen)
-            navigation.navigate('UserHomeScreen', { driver, response });
+                // Ab yahan sirf success hone par hi navigate hoga
+                navigation.navigate('DriverStatus', { driver, response });
+            }
 
         } catch (error: any) {
             console.log("Assign Driver Error:", error);
