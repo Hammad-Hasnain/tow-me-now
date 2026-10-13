@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
@@ -17,29 +17,38 @@ import LinearGradient from 'react-native-linear-gradient';
 import Toast from 'react-native-toast-message';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Geolocation from '@react-native-community/geolocation';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { serviceRequestService } from '../services/serviceRequest';
 
 export default function UserHomeScreen({ navigation }: any) {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-    // Form States
-    const [vehicle, setVehicle] = useState('');
-    const [model, setModel] = useState('');
-    const [problem, setProblem] = useState('');
+    // Form States (Payload ke mutabiq exact fields)
+    const [vehicle, setVehicle] = useState(''); // Backend payload: vehicle
+    const [model, setModel] = useState('');     // Backend payload: model
+    const [vehicleNo, setVehicleNo] = useState(''); // Backend payload: vehicleNo
+    const [problem, setProblem] = useState(''); // Backend payload: problem
+
     const [currentLoc, setCurrentLoc] = useState('');
     const [dropoffLoc, setDropoffLoc] = useState('');
-    const [vehicleNo, setVehicleNo] = useState('');
+
     const [loadingLocation, setLoadingLocation] = useState(false);
     const [loadingDropoff, setLoadingDropoff] = useState(false);
+    const [loadingApi, setLoadingApi] = useState(false);
 
     // Coordinates States
     const [pickupCoords, setPickupCoords] = useState<{ lat: number; lon: number } | null>(null);
     const [dropoffCoords, setDropoffCoords] = useState<{ lat: number; lon: number } | null>(null);
 
+    const [loadingStorage, setLoadingStorage] = useState(true);
+    const [userInfo, setUserInfo] = useState<any>(null);
+    console.log(dropoffCoords, pickupCoords, 'yes');
+
     // Reverse Geocoding with Timeout Safety & English Language
     const getAddressFromCoords = async (lat: number, lon: number) => {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 sec timeout safety
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
 
             const response = await fetch(
                 `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=en`,
@@ -59,10 +68,6 @@ export default function UserHomeScreen({ navigation }: any) {
             return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
         }
     };
-
-
-    console.log(pickupCoords, "current lat lon")
-    console.log(dropoffCoords, "destination lat lon")
 
     // Dropoff Search Handler
     const handleSearchDropoff = async () => {
@@ -103,14 +108,12 @@ export default function UserHomeScreen({ navigation }: any) {
                     lon: parseFloat(topResult.lon),
                 });
 
-                // SUCCESS TOAST
                 Toast.show({
                     type: 'success',
                     text1: 'Location Found',
                     text2: topResult.display_name,
                     position: 'top',
                 });
-
             } else {
                 Toast.show({
                     type: 'error',
@@ -119,7 +122,6 @@ export default function UserHomeScreen({ navigation }: any) {
                     position: 'top',
                 });
             }
-
         } catch (error) {
             console.error('Dropoff Search Error:', error);
             Toast.show({
@@ -168,10 +170,8 @@ export default function UserHomeScreen({ navigation }: any) {
             async (position) => {
                 const { latitude, longitude } = position.coords;
 
-                // Save Coordinates State
                 setPickupCoords({ lat: latitude, lon: longitude });
 
-                // Fetch English Address Name
                 const address = await getAddressFromCoords(latitude, longitude);
                 setCurrentLoc(address);
                 setLoadingLocation(false);
@@ -180,28 +180,122 @@ export default function UserHomeScreen({ navigation }: any) {
                 setLoadingLocation(false);
                 Alert.alert('Location Error', error.message);
             },
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+            // { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+            { enableHighAccuracy: false, timeout: 30000, maximumAge: 10000 }
         );
     };
 
-    // const handleLLMChat = () => {
-    //     Alert.alert('AI Assistant', 'Analyzing your vehicle description for fast support...');
-    // };
-
-    const handleGetTow = () => {
+    // API Hit Handler (`POST /service-request`)
+    const handleGetTow = async () => {
         if (!currentLoc.trim() || !dropoffLoc.trim()) {
             Alert.alert('Required', 'Please enter Pick-up and Drop-off locations.');
             return;
         }
-        // Next screen pr navigate karein
-        navigation.navigate('AvailableDrivers', {
-            requestDetails: { vehicle, model, problem, currentLoc, dropoffLoc, vehicleNo },
-        });
+
+        if (!pickupCoords || !dropoffCoords) {
+            Alert.alert('Location Error', 'Please fetch your current GPS location and search dropoff location properly.');
+            return;
+        }
+
+        if (!userInfo || !userInfo.id) {
+            Alert.alert('Session Error', 'User info not found. Please login again.');
+            navigation.replace('Login');
+            return;
+        }
+
+        // Payload structure as required by your backend
+        const payload = {
+            userId: userInfo.id,
+            vehicle: vehicle.trim(),
+            model: model.trim(),
+            vehicleNo: vehicleNo.trim(),
+            problem: problem.trim(),
+            pickupLoc: {
+                latitude: pickupCoords.lat,
+                longitude: pickupCoords.lon,
+                address: currentLoc,
+            },
+            dropoffLoc: {
+                latitude: dropoffCoords.lat,
+                longitude: dropoffCoords.lon,
+                address: dropoffLoc,
+            },
+        };
+
+        setLoadingApi(true);
+
+
+        try {
+            console.log("Sending payload to API:", JSON.stringify(payload, null, 2));
+            const responseData = await serviceRequestService.createRequest(payload);
+
+            console.log("API Response received:", responseData); // Yeh check karein ke console mein print hota hai ya nahi
+
+            Toast.show({
+                type: 'success',
+                text1: 'Request Created! 🚀',
+                text2: 'Finding available drivers...',
+                position: 'top',
+            });
+
+            // Condition hata kar direct navigate kar ke dekhein
+            navigation.navigate('AvailableDrivers', {
+                requestDetails: responseData,
+            });
+
+        } catch (error: any) {
+            // Agar API fail ho rahi hai ya catch block mein aa raha hai toh yahan exact error print hoga
+            console.log("API Catch Error:", error);
+            Alert.alert('Error', typeof error === 'string' ? error : JSON.stringify(error));
+        } finally {
+            setLoadingApi(false);
+        }
+    };
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const token = await AsyncStorage.getItem('accessToken');
+                const storedUser = await AsyncStorage.getItem('userInfo');
+
+                if (token && storedUser) {
+                    setUserInfo(JSON.parse(storedUser));
+                } else {
+                    navigation.replace('Login');
+                }
+            } catch (error) {
+                console.log("Error fetching storage data:", error);
+            } finally {
+                setLoadingStorage(false);
+            }
+        };
+
+        fetchUserData();
+    }, []);
+
+
+    const handleLogout = async () => {
+        try {
+            // 1. AsyncStorage se token remove karein
+            await AsyncStorage.removeItem('accessToken');
+
+            // Optional: Agar aap contextual state reset kar rahe hain
+            // setIsDrawerOpen(false);
+
+            // 2. Navigation reset karke Login screen par bhejein
+            navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+            });
+        } catch (error) {
+            console.error("Logout error:", error);
+            Alert.alert("Logout Error", "Something went wrong while logging out.");
+        }
     };
 
     return (
         <View style={{ flex: 1, backgroundColor: '#0B0F19' }}>
-              <StatusBar
+            <StatusBar
                 barStyle="light-content"
                 {...({
                     translucent: true,
@@ -248,10 +342,10 @@ export default function UserHomeScreen({ navigation }: any) {
 
                             <View style={styles.rowInputs}>
                                 <View style={{ flex: 1, marginRight: 8 }}>
-                                    <Text style={styles.label}>MAKE</Text>
+                                    <Text style={styles.label}>VEHICLE TYPE</Text>
                                     <TextInput
                                         style={styles.input}
-                                        placeholder="e.g. Honda"
+                                        placeholder="e.g. Sedan (Honda Civic)"
                                         placeholderTextColor="#64748B"
                                         value={vehicle}
                                         onChangeText={setVehicle}
@@ -262,7 +356,7 @@ export default function UserHomeScreen({ navigation }: any) {
                                     <Text style={styles.label}>MODEL & YEAR</Text>
                                     <TextInput
                                         style={styles.input}
-                                        placeholder="e.g. Civic 2021"
+                                        placeholder="e.g. Civic 2024 VTEC"
                                         placeholderTextColor="#64748B"
                                         value={model}
                                         onChangeText={setModel}
@@ -282,13 +376,12 @@ export default function UserHomeScreen({ navigation }: any) {
                             <Text style={styles.label}>ISSUE / PROBLEM</Text>
                             <TextInput
                                 style={[styles.input, { height: 70 }]}
-                                placeholder="Describe your issue (e.g. Engine heat up, Flat Tire)"
+                                placeholder="Describe your issue (e.g. Engine overheating issue)"
                                 placeholderTextColor="#64748B"
                                 multiline
                                 value={problem}
                                 onChangeText={setProblem}
                             />
-
 
                             <View style={styles.divider} />
 
@@ -315,7 +408,6 @@ export default function UserHomeScreen({ navigation }: any) {
                                 </TouchableOpacity>
                             </View>
 
-                            {/* DESTINATION WORKSHOP WITH OSM SEARCH BUTTON */}
                             <Text style={styles.label}>DESTINATION WORKSHOP</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
                                 <TextInput
@@ -337,13 +429,21 @@ export default function UserHomeScreen({ navigation }: any) {
                                 </TouchableOpacity>
                             </View>
 
-                            <TouchableOpacity activeOpacity={0.85} onPress={handleGetTow} style={styles.mainBtnWrapper}>
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                onPress={handleGetTow}
+                                disabled={loadingApi}
+                                style={styles.mainBtnWrapper}>
                                 <LinearGradient
                                     colors={['#6366F1', '#4F46E5']}
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 0 }}
                                     style={styles.primaryBtn}>
-                                    <Text style={styles.primaryBtnText}>Find Available Towing Service ➔</Text>
+                                    {loadingApi ? (
+                                        <ActivityIndicator color="#FFF" size="small" />
+                                    ) : (
+                                        <Text style={styles.primaryBtnText}>Find Available Towing Service ➔</Text>
+                                    )}
                                 </LinearGradient>
                             </TouchableOpacity>
                         </View>
@@ -354,7 +454,6 @@ export default function UserHomeScreen({ navigation }: any) {
             {/* Custom Drawer Overlay */}
             {isDrawerOpen && (
                 <View style={styles.customDrawerWrapper}>
-                    {/* Panel PEHLE aayega taake LEFT par rahe */}
                     <View style={styles.drawerPanel}>
                         <View style={styles.drawerHeader}>
                             <View style={styles.avatar}>
@@ -381,10 +480,16 @@ export default function UserHomeScreen({ navigation }: any) {
                                 }}>
                                 <Text style={styles.drawerItemText}>⚙️ Account Settings</Text>
                             </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.drawerItem} onPress={() => {
+                                setIsDrawerOpen(false);
+                                handleLogout();
+                            }}>
+                                <Text style={styles.drawerItemText}> ⚙️ logout</Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
 
-                    {/* Backdrop BAAD me aayega taake baki space RIGHT par cover kare */}
                     <TouchableOpacity
                         style={styles.drawerBackdrop}
                         activeOpacity={1}

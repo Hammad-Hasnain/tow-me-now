@@ -1,3 +1,292 @@
+// import React, { useState } from 'react';
+// import {
+//     View,
+//     Text,
+//     TextInput,
+//     TouchableOpacity,
+//     StyleSheet,
+//     SafeAreaView,
+//     KeyboardAvoidingView,
+//     Platform,
+//     StatusBar,
+//     ScrollView,
+// } from 'react-native';
+// import LinearGradient from 'react-native-linear-gradient';
+// import Toast from 'react-native-toast-message';
+
+// export const RegisterScreen = ({ navigation }: any) => {
+//     // 1. All hooks at top level
+//     const [role, setRole] = useState<'USER' | 'DRIVER'>('USER');
+
+//     // Common Fields
+//     const [fullName, setFullName] = useState('');
+//     const [email, setEmail] = useState('');
+//     const [phoneNumber, setPhoneNumber] = useState('');
+//     const [password, setPassword] = useState('');
+
+//     // Driver Specific Fields
+//     const [vehicleType, setVehicleType] = useState('Flatbed Tow Truck');
+//     const [vehicleNo, setVehicleNo] = useState('');
+//     const [cnicImg, setCnicImg] = useState<string | null>(null);
+//     const [licenseImg, setLicenseImg] = useState<string | null>(null);
+//     const [vehiclePapersImg, setVehiclePapersImg] = useState<string | null>(null);
+//     const [profilePic, setProfilePic] = useState<string | null>(null);
+
+//     // Dropdown toggle state
+//     const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
+//     const vehicleOptions = ['Flatbed Tow Truck', 'Hook and Chain', 'Wheel Lift Tow Truck', 'Integrated Tow Truck'];
+
+//     const handleImagePick = (type: 'cnic' | 'license' | 'papers' | 'profile') => {
+//         Toast.show({
+//             type: 'info',
+//             text1: 'Upload Image',
+//             text2: `Pick image for ${type.toUpperCase()}`,
+//         });
+//     };
+
+//     const handleRegister = () => {
+//         if (!fullName.trim() || !email.trim() || !phoneNumber.trim() || !password.trim()) {
+//             Toast.show({
+//                 type: 'error',
+//                 text1: 'Required Fields',
+//                 text2: 'Please fill in all mandatory fields (*)',
+//             });
+//             return;
+//         }
+
+//         if (role === 'DRIVER' && !vehicleNo.trim()) {
+//             Toast.show({
+//                 type: 'error',
+//                 text1: 'Required Fields',
+//                 text2: 'Please enter Vehicle Number',
+//             });
+//             return;
+//         }
+
+//         const registrationData = {
+//             role,
+//             fullName,
+//             email,
+//             phoneNumber: `+92${phoneNumber}`,
+//             password,
+//             ...(role === 'DRIVER' && {
+//                 vehicleType,
+//                 vehicleNo,
+//                 cnicImg,
+//                 licenseImg,
+//                 vehiclePapersImg,
+//                 profilePic,
+//             }),
+//         };
+
+//         console.log('Registering User Data:', registrationData);
+
+//         Toast.show({
+//             type: 'success',
+//             text1: 'Success',
+//             text2: 'Account registered successfully!',
+//         });
+//     };
+
+//     return (
+//         <LinearGradient colors={['#0F172A', '#1E1B4B', '#311042']} style={styles.gradientBackground}>
+//      <StatusBar
+//     barStyle="light-content"
+//     {...({
+//         translucent: true,
+//         backgroundColor: 'transparent',
+//     } as any)}
+// />
+
+//             <SafeAreaView style={styles.container}>
+//                 <KeyboardAvoidingView
+//                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+//                     style={styles.inner}>
+//                     <ScrollView 
+//                         showsVerticalScrollIndicator={false} 
+//                         contentContainerStyle={styles.scrollContent}
+//                         keyboardShouldPersistTaps="handled">
+
+//                         {/* Header */}
+//                         <View style={styles.headerContainer}>
+//                             <Text style={styles.title}>Create Account</Text>
+//                             <Text style={styles.subtitle}>Registration On Towing service platform.</Text>
+//                         </View>
+
+//                         {/* Role Selection */}
+//                         <Text style={styles.label}>REGISTER AS</Text>
+//                         <View style={styles.roleContainer}>
+//                             <TouchableOpacity
+//                                 style={[styles.roleCard, role === 'USER' && styles.selectedRoleCard]}
+//                                 activeOpacity={0.85}
+//                                 onPress={() => setRole('USER')}>
+//                                 <View style={[styles.radioButton, role === 'USER' && styles.radioSelected]}>
+//                                     {role === 'USER' && <View style={styles.radioInnerCircle} />}
+//                                 </View>
+//                                 <Text style={[styles.roleText, role === 'USER' && styles.selectedRoleText]}>User</Text>
+//                             </TouchableOpacity>
+
+//                             <TouchableOpacity
+//                                 style={[styles.roleCard, role === 'DRIVER' && styles.selectedRoleCard]}
+//                                 activeOpacity={0.85}
+//                                 onPress={() => setRole('DRIVER')}>
+//                                 <View style={[styles.radioButton, role === 'DRIVER' && styles.radioSelected]}>
+//                                     {role === 'DRIVER' && <View style={styles.radioInnerCircle} />}
+//                                 </View>
+//                                 <Text style={[styles.roleText, role === 'DRIVER' && styles.selectedRoleText]}>Driver</Text>
+//                             </TouchableOpacity>
+//                         </View>
+
+//                         {/* Form Inputs */}
+//                         <View style={styles.form}>
+//                             <Text style={styles.label}>*FULL NAME</Text>
+//                             <TextInput
+//                                 style={styles.input}
+//                                 placeholder="e.g. Ali Ahmed"
+//                                 placeholderTextColor="#64748B"
+//                                 value={fullName}
+//                                 onChangeText={setFullName}
+//                             />
+
+//                             <Text style={styles.label}>*EMAIL</Text>
+//                             <TextInput
+//                                 style={styles.input}
+//                                 placeholder="e.g. ali@example.com"
+//                                 placeholderTextColor="#64748B"
+//                                 keyboardType="email-address"
+//                                 autoCapitalize="none"
+//                                 value={email}
+//                                 onChangeText={setEmail}
+//                             />
+
+//                             <Text style={styles.label}>*PHONE NUMBER</Text>
+//                             <View style={styles.phoneInputContainer}>
+//                                 <Text style={styles.countryCode}>+92</Text>
+//                                 <TextInput
+//                                     style={styles.phoneInput}
+//                                     placeholder="300 1234567"
+//                                     placeholderTextColor="#64748B"
+//                                     keyboardType="phone-pad"
+//                                     maxLength={10}
+//                                     value={phoneNumber}
+//                                     onChangeText={setPhoneNumber}
+//                                 />
+//                             </View>
+
+//                             <Text style={styles.label}>*PASSWORD</Text>
+//                             <TextInput
+//                                 style={styles.input}
+//                                 placeholder="••••••••"
+//                                 placeholderTextColor="#64748B"
+//                                 secureTextEntry
+//                                 value={password}
+//                                 onChangeText={setPassword}
+//                             />
+
+//                             {/* Additional Fields for DRIVER */}
+//                             {role === 'DRIVER' && (
+//                                 <View style={styles.driverSection}>
+//                                     <Text style={styles.sectionHeader}>Driver Details</Text>
+                                    
+//                                     <Text style={styles.label}>*VEHICLE TYPE</Text>
+//                                     <TouchableOpacity
+//                                         style={styles.dropdownButton}
+//                                         onPress={() => setShowVehicleDropdown(!showVehicleDropdown)}>
+//                                         <Text style={styles.dropdownText}>{vehicleType}</Text>
+//                                         <Text style={styles.dropdownArrow}>{showVehicleDropdown ? '▲' : '▼'}</Text>
+//                                     </TouchableOpacity>
+
+//                                     {showVehicleDropdown && (
+//                                         <View style={styles.dropdownMenu}>
+//                                             {vehicleOptions.map((item, index) => (
+//                                                 <TouchableOpacity
+//                                                     key={index}
+//                                                     style={styles.dropdownItem}
+//                                                     onPress={() => {
+//                                                         setVehicleType(item);
+//                                                         setShowVehicleDropdown(false);
+//                                                     }}>
+//                                                     <Text style={styles.dropdownItemText}>{item}</Text>
+//                                                 </TouchableOpacity>
+//                                             ))}
+//                                         </View>
+//                                     )}
+
+//                                     <Text style={styles.label}>*VEHICLE NO.</Text>
+//                                     <TextInput
+//                                         style={styles.input}
+//                                         placeholder="e.g. LEB-1234"
+//                                         placeholderTextColor="#64748B"
+//                                         autoCapitalize="characters"
+//                                         value={vehicleNo}
+//                                         onChangeText={setVehicleNo}
+//                                     />
+
+//                                     {/* Image Attachments */}
+//                                     <Text style={styles.label}>CNIC PHOTO</Text>
+//                                     <TouchableOpacity
+//                                         style={styles.uploadButton}
+//                                         onPress={() => handleImagePick('cnic')}>
+//                                         <Text style={styles.uploadButtonText}>
+//                                             {cnicImg ? '✓ CNIC Uploaded' : '📷 Upload CNIC Image'}
+//                                         </Text>
+//                                     </TouchableOpacity>
+
+//                                     <Text style={styles.label}>DRIVING LICENSE</Text>
+//                                     <TouchableOpacity
+//                                         style={styles.uploadButton}
+//                                         onPress={() => handleImagePick('license')}>
+//                                         <Text style={styles.uploadButtonText}>
+//                                             {licenseImg ? '✓ License Uploaded' : '📷 Upload License Image'}
+//                                         </Text>
+//                                     </TouchableOpacity>
+
+//                                     <Text style={styles.label}>VEHICLE PAPERS</Text>
+//                                     <TouchableOpacity
+//                                         style={styles.uploadButton}
+//                                         onPress={() => handleImagePick('papers')}>
+//                                         <Text style={styles.uploadButtonText}>
+//                                             {vehiclePapersImg ? '✓ Papers Uploaded' : '📷 Upload Vehicle Papers'}
+//                                         </Text>
+//                                     </TouchableOpacity>
+
+//                                     <Text style={styles.label}>PROFILE PICTURE</Text>
+//                                     <TouchableOpacity
+//                                         style={styles.uploadButton}
+//                                         onPress={() => handleImagePick('profile')}>
+//                                         <Text style={styles.uploadButtonText}>
+//                                             {profilePic ? '✓ Profile Pic Uploaded' : '👤 Upload Profile Picture'}
+//                                         </Text>
+//                                     </TouchableOpacity>
+//                                 </View>
+//                             )}
+
+//                             {/* Submit Button */}
+//                             <TouchableOpacity activeOpacity={0.85} onPress={handleRegister} style={styles.buttonWrapper}>
+//                                 <LinearGradient
+//                                     colors={['#8B5CF6', '#6366F1']}
+//                                     start={{ x: 0, y: 0 }}
+//                                     end={{ x: 1, y: 0 }}
+//                                     style={styles.submitButton}>
+//                                     <Text style={styles.submitButtonText}>Continue</Text>
+//                                 </LinearGradient>
+//                             </TouchableOpacity>
+
+//                             {/* Footer Link */}
+//                             <View style={styles.footerContainer}>
+//                                 <Text style={styles.footerText}>Already have an account? </Text>
+//                                 <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+//                                     <Text style={styles.loginText}>Sign In</Text>
+//                                 </TouchableOpacity>
+//                             </View>
+//                         </View>
+//                     </ScrollView>
+//                 </KeyboardAvoidingView>
+//             </SafeAreaView>
+//         </LinearGradient>
+//     );
+// };
+
 import React, { useState } from 'react';
 import {
     View,
@@ -13,10 +302,11 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import Toast from 'react-native-toast-message';
+import { authService } from '../services/authService'; // <-- Service import ki gayi hai
 
 export const RegisterScreen = ({ navigation }: any) => {
-    // 1. All hooks at top level
     const [role, setRole] = useState<'USER' | 'DRIVER'>('USER');
+    const [loading, setLoading] = useState(false);
 
     // Common Fields
     const [fullName, setFullName] = useState('');
@@ -25,7 +315,7 @@ export const RegisterScreen = ({ navigation }: any) => {
     const [password, setPassword] = useState('');
 
     // Driver Specific Fields
-    const [vehicleType, setVehicleType] = useState('Flatbed Tow Truck');
+    const [vehicleType, setVehicleType] = useState('please select');
     const [vehicleNo, setVehicleNo] = useState('');
     const [cnicImg, setCnicImg] = useState<string | null>(null);
     const [licenseImg, setLicenseImg] = useState<string | null>(null);
@@ -34,7 +324,7 @@ export const RegisterScreen = ({ navigation }: any) => {
 
     // Dropdown toggle state
     const [showVehicleDropdown, setShowVehicleDropdown] = useState(false);
-    const vehicleOptions = ['Flatbed Tow Truck', 'Hook and Chain', 'Wheel Lift Tow Truck', 'Integrated Tow Truck'];
+    const vehicleOptions = ['FLAT_BED', 'WHEEL_LIFT', 'HOOK_AND_CHAIN'];
 
     const handleImagePick = (type: 'cnic' | 'license' | 'papers' | 'profile') => {
         Toast.show({
@@ -43,8 +333,10 @@ export const RegisterScreen = ({ navigation }: any) => {
             text2: `Pick image for ${type.toUpperCase()}`,
         });
     };
+    console.log(vehicleType,"hhhh");
+    
 
-    const handleRegister = () => {
+    const handleRegister = async () => {
         if (!fullName.trim() || !email.trim() || !phoneNumber.trim() || !password.trim()) {
             Toast.show({
                 type: 'error',
@@ -63,40 +355,63 @@ export const RegisterScreen = ({ navigation }: any) => {
             return;
         }
 
+        // Payload mein role nahi hoga, sirf data jayega
         const registrationData = {
-            role,
-            fullName,
+            name: fullName,
             email,
-            phoneNumber: `+92${phoneNumber}`,
+            phone: `+92${phoneNumber}`,
             password,
             ...(role === 'DRIVER' && {
                 vehicleType,
-                vehicleNo,
-                cnicImg,
-                licenseImg,
-                vehiclePapersImg,
-                profilePic,
+                vehicleNumber:vehicleNo,
+                // cnicImg,
+                // licenseImg,
+                // vehiclePapersImg,
+                // profilePic,
+                cnicImg: null,       // Filhaal null bhej rahe hain
+                licenseImg: null,    // Filhaal null bhej rahe hain
+                vehiclePapersImg: null, // Filhaal null bhej rahe hain
+                profilePic: null,    // Filhaal null bhej rahe hain
             }),
         };
 
-        console.log('Registering User Data:', registrationData);
+        try {
+            setLoading(true);
+            
+            // Role ke mutabiq respective service function call hoga
+            const response = role === 'DRIVER' 
+                ? await authService.signupDriver(registrationData as any)
+                : await authService.signupUser(registrationData);
+            
+            Toast.show({
+                type: 'success',
+                text1: 'Success',
+                text2: 'Account registered successfully!',
+            });
 
-        Toast.show({
-            type: 'success',
-            text1: 'Success',
-            text2: 'Account registered successfully!',
-        });
+            setTimeout(() => {
+                navigation.navigate('Login');
+            }, 1500);
+
+        } catch (error: any) {
+            Toast.show({
+                type: 'error',
+                text1: 'Registration Failed',
+                text2: typeof error === 'string' ? error : error?.message || 'Something went wrong',
+            });
+        } finally {
+            setLoading(false);
+        }
     };
-
     return (
         <LinearGradient colors={['#0F172A', '#1E1B4B', '#311042']} style={styles.gradientBackground}>
-     <StatusBar
-    barStyle="light-content"
-    {...({
-        translucent: true,
-        backgroundColor: 'transparent',
-    } as any)}
-/>
+            <StatusBar
+                barStyle="light-content"
+                {...({
+                    translucent: true,
+                    backgroundColor: 'transparent',
+                } as any)}
+            />
 
             <SafeAreaView style={styles.container}>
                 <KeyboardAvoidingView
@@ -262,13 +577,19 @@ export const RegisterScreen = ({ navigation }: any) => {
                             )}
 
                             {/* Submit Button */}
-                            <TouchableOpacity activeOpacity={0.85} onPress={handleRegister} style={styles.buttonWrapper}>
+                            <TouchableOpacity 
+                                activeOpacity={0.85} 
+                                onPress={handleRegister} 
+                                disabled={loading}
+                                style={styles.buttonWrapper}>
                                 <LinearGradient
                                     colors={['#8B5CF6', '#6366F1']}
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 0 }}
                                     style={styles.submitButton}>
-                                    <Text style={styles.submitButtonText}>Continue</Text>
+                                    <Text style={styles.submitButtonText}>
+                                        {loading ? 'Processing...' : 'Continue'}
+                                    </Text>
                                 </LinearGradient>
                             </TouchableOpacity>
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   StatusBar,
   Platform,
+  Alert,
   Switch,
   Dimensions,
   SafeAreaView,
@@ -14,6 +15,9 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Geolocation from '@react-native-community/geolocation';
+import apiClient from '../api/apiClient';
 
 const { width } = Dimensions.get('window');
 
@@ -29,25 +33,238 @@ const mockRequest = {
   dropoffLoc: 'Toyota Township Motors, Lahore',
 };
 
+export interface LocationDetail {
+    latitude: number;
+    longitude: number;
+    address: string;
+}
+
+export interface ServiceRequestItem {
+    id: string;
+    vehicle: string;
+    model: string;
+    problem: string;
+    pickupLoc: LocationDetail;
+    dropoffLoc: LocationDetail;
+    fare: number;
+    status: string; // e.g., 'PENDING' | 'ACCEPTED' | 'REJECTED'
+    userName: string;
+}
+
 export default function HomeScreen() {
   const [isOnline, setIsOnline] = useState<boolean>(false);
   const [hasRequest, setHasRequest] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
   // 2. Navigation Hook Initialize Karein
   const navigation = useNavigation<any>();
-  
-  const handleAccept = () => {
-    setHasRequest(false);
-    setIsDrawerOpen(false); // Drawer state ko close karein
+  const [loadingToggle, setLoadingToggle] = useState<boolean>(false);
+  const [userInfo, setUserInfo] = useState<any>(null);
 
-    // Standard Navigation
-    navigation.navigate('DriverEnrouteScreen', {
-      request: mockRequest,
+
+  const [incomingRequest, setIncomingRequest] = useState<ServiceRequestItem[]>([]);
+
+  // Driver ki assigned service requests fetch karne ka function
+useEffect(() => {
+    const fetchDriverRequests = async () => {
+      const driverId = userInfo?._id || userInfo?.id;
+      if (!driverId || !isOnline) {
+        setIncomingRequest([]);
+        setHasRequest(false);
+        return;
+      }
+
+      try {
+        console.log("Fetching service requests for driver:", driverId);
+        const response: any = await apiClient.get(`/service-request/driver/${driverId}`);
+        console.log("Driver Service Requests Response:", response);
+
+        // Response ko safely extract karne ka tareeqa (array, object, ya null/undefined ke liye)
+        let requestsData: ServiceRequestItem[] = [];
+
+        if (Array.isArray(response)) {
+          requestsData = response;
+        } else if (response?.requests && Array.isArray(response.requests)) {
+          requestsData = response.requests;
+        } else if (response?.data && Array.isArray(response.data)) {
+          requestsData = response.data;
+        }
+
+        if (requestsData.length > 0) {
+          setIncomingRequest(requestsData);
+          setHasRequest(true);
+        } else {
+          setIncomingRequest([]);
+          setHasRequest(false);
+        }
+      } catch (error: any) {
+        console.log("Error fetching driver requests:", error);
+        setIncomingRequest([]);
+        setHasRequest(false);
+      }
+    };
+
+    fetchDriverRequests();
+
+    const interval = setInterval(() => {
+      if (isOnline) {
+        fetchDriverRequests();
+      }
+    }, 10000); // Har 10 seconds baad check karega
+
+    return () => clearInterval(interval);
+  }, [userInfo, isOnline]);
+
+
+
+
+  
+
+  // 1. Component load hotay hi AsyncStorage se token nikal kar log karana
+useEffect(() => {
+    const getStoredData = async () => {
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        const storedUser = await AsyncStorage.getItem('userInfo');
+        console.log("--- DEBUG TOKEN ---", token);
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          setUserInfo(parsedUser);
+          // Agar user pehle se available hai toh switch on rakhein
+          if (parsedUser?.dutyStatus === 'AVAILABLE') {
+            setIsOnline(true);
+          }
+        }
+      } catch (error) {
+        console.log("Error fetching storage data:", error);
+      }
+    };
+
+    getStoredData();
+  }, []);
+
+
+  const handleAccept = async (item: ServiceRequestItem) => {
+    try {
+      console.log("Accepting service request:", item.id);
+      const response: any = await apiClient.patch(`/service-request/${item.id}/decision`, {
+        decision: 'ACCEPT',
+      });
+      console.log("Accept Response:", response);
+
+      setHasRequest(false);
+      setIsDrawerOpen(false);
+
+      // Navigation mein item pass kar sakte hain
+      navigation.navigate('DriverEnrouteScreen', {
+        request: item,
+      });
+    } catch (error: any) {
+      console.log("Error accepting request:", error);
+      Alert.alert('Error', error?.response?.data?.message || 'Could not accept the request.');
+    }
+  };
+
+  const handleReject = async (item: ServiceRequestItem) => {
+    try {
+      console.log("Rejecting service request:", item.id);
+      const response: any = await apiClient.patch(`/service-request/${item.id}/decision`, {
+        decision: 'REJECT',
+      });
+      console.log("Reject Response:", response);
+
+      // List se item hata dein ya state refresh karein
+      setIncomingRequest((prev) => prev.filter((req) => req.id !== item.id));
+      if (incomingRequest.length <= 1) {
+        setHasRequest(false);
+      }
+    } catch (error: any) {
+      console.log("Error rejecting request:", error);
+      Alert.alert('Error', error?.response?.data?.message || 'Could not reject the request.');
+    }
+  };
+
+  const handleToggleDuty = async (newVal: boolean) => {
+    setLoadingToggle(true);
+
+    // 1. Driver ID check karein jo userInfo mein mojood hai
+    const driverId = userInfo?._id || userInfo?.id;
+    if (!driverId) {
+      setLoadingToggle(false);
+      Alert.alert('Error', 'Driver ID not found. Please log in again.');
+      return;
+    }
+
+    // 2. Geolocation se coordinates nikalna
+    Geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        console.log("--- CURRENT LOCATION FETCHED ---");
+        console.log("Latitude:", latitude, "Longitude:", longitude);
+
+        try {
+          // Payload bilkul waise hi jaisa image mein hai
+          const payload = {
+            driverId: driverId,
+            dutyStatus: newVal ? 'AVAILABLE' : 'OFFLINE',
+            currentLocation: {
+              latitude: latitude,
+              longitude: longitude,
+              address: 'Current Location', // Aap yahan Reverse Geocoding address bhi de sakte hain
+            },
+          };
+
+          console.log("Sending Toggle Duty Payload:", payload);
+
+          // PATCH API Request Call
+          const response: any = await apiClient.patch('/driver/toggle-duty/', payload);
+          console.log("Toggle Duty Response:", response);
+
+          // State update karein
+          setIsOnline(newVal);
+          if (!newVal) setHasRequest(false);
+
+          // AsyncStorage mein updated user info save karna (optional but recommended)
+          if (response?.user) {
+            setUserInfo(response.user);
+            await AsyncStorage.setItem('userInfo', JSON.stringify(response.user));
+          }
+
+        } catch (error: any) {
+          console.log("Toggle Duty API Error:", error);
+          Alert.alert('Failed', error?.message || 'Could not update duty status.');
+          // Error ki soorat mein switch ki state ko wapas revert kar dein
+          setIsOnline(!newVal);
+        } finally {
+          setLoadingToggle(false);
+        }
+      },
+      (error) => {
+        console.log("Location Error:", error);
+        setLoadingToggle(false);
+        Alert.alert("Location Error", "Could not get current location. Please check your GPS.");
+      },
+      { enableHighAccuracy: false, timeout: 30000, maximumAge: 10000 }
+    );
+  };
+
+const handleLogout = async () => {
+  try {
+    // 1. AsyncStorage se token remove karein
+    await AsyncStorage.removeItem('accessToken');
+    
+    // Optional: Agar aap contextual state reset kar rahe hain
+    // setIsDrawerOpen(false);
+
+    // 2. Navigation reset karke Login screen par bhejein
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
     });
-  };
-  const handleReject = () => {
-    setHasRequest(false);
-  };
+  } catch (error) {
+    console.error("Logout error:", error);
+    Alert.alert("Logout Error", "Something went wrong while logging out.");
+  }
+};
 
   return (
     <View style={{ flex: 1, backgroundColor: '#0B0F19' }}>
@@ -84,10 +301,11 @@ export default function HomeScreen() {
               <Text style={styles.toggleText}>{isOnline ? 'Online' : 'Offline'}</Text>
               <Switch
                 value={isOnline}
-                onValueChange={(val) => {
-                  setIsOnline(val);
-                  if (!val) setHasRequest(false);
-                }}
+                // onValueChange={(val) => {
+                //   setIsOnline(val);
+                //   if (!val) setHasRequest(false);
+                // }}
+                onValueChange={(val) => handleToggleDuty(val)}
                 trackColor={{ false: '#374151', true: '#059669' }}
                 thumbColor={isOnline ? '#34D399' : '#9CA3AF'}
               />
@@ -195,28 +413,28 @@ export default function HomeScreen() {
             )}
 
             {/* New Job Request Card */}
-            {isOnline && hasRequest && (
-              <View style={styles.requestCard}>
+         {isOnline && hasRequest && incomingRequest && incomingRequest?.map((item) => (
+              <View key={item.id} style={styles.requestCard}>
                 <View style={styles.requestHeader}>
                   <View style={styles.badgeAlert}>
-                    <Text style={styles.badgeAlertText}>NEW TOW REQUEST</Text>
+                    <Text style={styles.badgeAlertText}>NEW TOW REQUEST ({item.status})</Text>
                   </View>
-                  <Text style={styles.fareText}>{mockRequest.fare}</Text>
+                  <Text style={styles.fareText}>PKR {item.fare}</Text>
                 </View>
 
                 <View style={styles.detailRow}>
                   <Icon name="person-outline" size={18} color="#A78BFA" />
                   <View style={{ marginLeft: 10 }}>
                     <Text style={styles.label}>Customer</Text>
-                    <Text style={styles.value}>{mockRequest.userName} ({mockRequest.userPhone})</Text>
+                    <Text style={styles.value}>{item.userName || 'Customer'}</Text>
                   </View>
                 </View>
 
                 <View style={styles.detailRow}>
                   <Icon name="car-sport-outline" size={18} color="#A78BFA" />
                   <View style={{ marginLeft: 10 }}>
-                    <Text style={styles.label}>Vehicle</Text>
-                    <Text style={styles.value}>{mockRequest.vehicle} • {mockRequest.vehicleNo}</Text>
+                    <Text style={styles.label}>Vehicle & Model</Text>
+                    <Text style={styles.value}>{item.vehicle} - {item.model}</Text>
                   </View>
                 </View>
 
@@ -224,7 +442,7 @@ export default function HomeScreen() {
                   <Icon name="warning-outline" size={18} color="#F59E0B" />
                   <View style={{ marginLeft: 10 }}>
                     <Text style={styles.label}>Issue / Problem</Text>
-                    <Text style={[styles.value, { color: '#FBBF24' }]}>{mockRequest.problem}</Text>
+                    <Text style={[styles.value, { color: '#FBBF24' }]}>{item.problem}</Text>
                   </View>
                 </View>
 
@@ -234,7 +452,7 @@ export default function HomeScreen() {
                   <Icon name="location-outline" size={18} color="#10B981" />
                   <View style={{ marginLeft: 10, flex: 1 }}>
                     <Text style={styles.label}>Pickup Location</Text>
-                    <Text style={styles.value}>{mockRequest.pickupLoc}</Text>
+                    <Text style={styles.value}>{item.pickupLoc?.address}</Text>
                   </View>
                 </View>
 
@@ -242,21 +460,22 @@ export default function HomeScreen() {
                   <Icon name="navigate-outline" size={18} color="#EF4444" />
                   <View style={{ marginLeft: 10, flex: 1 }}>
                     <Text style={styles.label}>Dropoff Location</Text>
-                    <Text style={styles.value}>{mockRequest.dropoffLoc}</Text>
+                    <Text style={styles.value}>{item.dropoffLoc?.address}</Text>
                   </View>
                 </View>
 
                 {/* Action Buttons */}
-                <View style={styles.actionRow}>
-                  <TouchableOpacity style={styles.rejectBtn} onPress={handleReject}>
-                    <Text style={styles.rejectBtnText}>Reject</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.acceptBtn} onPress={handleAccept}>
-                    <Text style={styles.acceptBtnText}>Accept Request</Text>
-                  </TouchableOpacity>
-                </View>
+                {/* Action Buttons */}
+<View style={styles.actionRow}>
+  <TouchableOpacity style={styles.rejectBtn} onPress={() => handleReject(item)}>
+    <Text style={styles.rejectBtnText}>Reject</Text>
+  </TouchableOpacity>
+  <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAccept(item)}>
+    <Text style={styles.acceptBtnText}>Accept Request</Text>
+  </TouchableOpacity>
+</View>
               </View>
-            )}
+            ))}
 
             {/* Daily Incentive Progress Card */}
             <View style={styles.goalCard}>
@@ -307,6 +526,13 @@ export default function HomeScreen() {
                 }}>
 
                 <Text style={styles.drawerItemText}>⚙️ Profile & Account Settings</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.drawerItem} onPress={() => {
+    setIsDrawerOpen(false);
+    handleLogout();
+  }}>
+                <Text style={styles.drawerItemText}>📜 logout</Text>
               </TouchableOpacity>
             </View>
           </View>

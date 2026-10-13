@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
@@ -10,31 +10,79 @@ import {
     Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { serviceRequestService } from '../services/serviceRequest';
 
-export default function AvailableDriversScreen({ navigation }: any) {
-    const driversList = [
-        {
-            id: '1',
-            name: 'Ali Raza',
-            phone: '+92 300 1234567',
-            vehicle: 'Flatbed Tow Truck',
-            vehicleNo: 'LEB-9988',
-            distance: '2.5 km away',
-            fare: 'PKR 3,500',
-        },
-        {
-            id: '2',
-            name: 'Usman Khan',
-            phone: '+92 321 7654321',
-            vehicle: 'Wheel Lift Truck',
-            vehicleNo: 'KHI-4433',
-            distance: '4.1 km away',
-            fare: 'PKR 2,800',
-        },
-    ];
+export default function AvailableDriversScreen({ navigation, route }: any) {
+    // route.params se requestDetails nikalna zaroori hai
+    const { requestDetails } = route?.params || {};
+const requestId = requestDetails?.id;
+    console.log("Received Request Details on Next Screen:", requestDetails);
 
-    const handleSelectDriver = (driver: any) => {
-        navigation.navigate('DriverStatus', { driver });
+
+
+    const [driversList, setDriversList] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [assigning, setAssigning] = useState(false);
+
+    // API Call to fetch available drivers
+    useEffect(() => {
+        const fetchAvailableDrivers = async () => {
+            if (!requestId) {
+                Alert.alert('Error', 'Service Request ID not found.');
+                setLoading(false);
+                return;
+            }
+
+            try {
+                setLoading(true);
+                const data = await serviceRequestService.getAvailableDrivers(requestId);
+                console.log("Fetched Available Drivers:", data);
+                
+                // Agar data array hai to set kar dein (ya backend response ke mutabiq adjust karein)
+                setDriversList(Array.isArray(data) ? data : data.drivers || []);
+            } catch (error: any) {
+                console.log("Error fetching drivers:", error);
+                Alert.alert('Error', typeof error === 'string' ? error : 'Failed to fetch available drivers');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAvailableDrivers();
+    }, [requestId]);
+const handleSelectDriver = async (driver: any) => {
+        if (!requestId) {
+            Alert.alert('Error', 'Service Request ID is missing.');
+            return;
+        }
+try {
+            setAssigning(true);
+
+            // Image ki API requirement ke mutabiq payload
+            const payload = {
+                driverId: driver.driverId, // Driver object se driverId
+                fare: driver.fare,         // Driver object se fare
+            };
+
+            console.log("Assigning Driver Payload:", payload);
+
+            const response = await serviceRequestService.assignDriver(requestId, payload);
+            console.log("Assign Driver Response:", response);
+
+            // Yeh check ensure karega ke response milne par hi aage barhein
+            if (response) {
+                Alert.alert('Success', `Driver ${driver.driverName || 'Partner'} assigned successfully!`);
+
+                // Ab yahan sirf success hone par hi navigate hoga
+                navigation.navigate('DriverStatus', { driver, response });
+            }
+
+        } catch (error: any) {
+            console.log("Assign Driver Error:", error);
+            Alert.alert('Failed', error?.message || 'Could not assign driver.');
+        } finally {
+            setAssigning(false);
+        }
     };
 
     return (
@@ -61,7 +109,7 @@ export default function AvailableDriversScreen({ navigation }: any) {
                             <View key={driver.id} style={styles.driverCard}>
                                 <View style={styles.driverHeader}>
                                     <Text style={styles.driverName}>{driver.name}</Text>
-                                    <Text style={styles.fareText}>{driver.fare}</Text>
+                                    <Text style={styles.fareText}>{driver.fare} RS.</Text>
                                 </View>
                                 <Text style={styles.driverSub}>📞 {driver.phone}</Text>
                                 <Text style={styles.driverSub}>🚚 {driver.vehicle} ({driver.vehicleNo})</Text>
