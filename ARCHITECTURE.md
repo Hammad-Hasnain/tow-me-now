@@ -166,13 +166,15 @@ sequenceDiagram
     DB-->>API: Updated records
     API-->>D: Decision response
     alt Driver accepts
-        Note over API,DB: Request becomes ACCEPTED and driver becomes ON_TRIP
+        API->>DB: Set request to ACCEPTED and driver to ON_TRIP
         D->>API: PATCH ARRIVED, then TOWING, then COMPLETED
         API->>DB: Validate transitions and persist updates
         DB-->>API: Updated request and driver metrics
         API-->>D: Status response
     else Driver rejects
-        Note over API,DB: Request returns to PENDING; assignment is cleared
+        API->>DB: Return request to PENDING and clear driver assignment
+        DB-->>API: Updated request and driver metrics
+        API-->>D: Rejection response
     end
 ```
 
