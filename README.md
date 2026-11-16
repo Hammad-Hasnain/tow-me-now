@@ -128,11 +128,11 @@ npm run android --workspace=TowingApp
   [LinkedIn Profile](https://www.linkedin.com/in/hammadhasnain/) | [GitHub Portfolio](https://github.com/Hammad-Hasnain/)
 
 
-* **Ahmed** - *Mobile Application Engineer*  
+* **Muhammad Ahmed** - *Mobile Application Engineer*  
   Engineered the multi-persona React Native cross-platform client app, implementing localized device telemetry tracking, geolocation systems, and modular screen navigations.
   [LinkedIn Profile](https://www.linkedin.com/in/) | [GitHub Portfolio](https://github.com/Ahmed-201)
   
 
-* **Usaid** - *Frontend Engineer (Web Admin)*  
+* **Muhammad Usaid** - *Frontend Engineer (Web Admin)*  
   Developed the comprehensive Next.js central management dashboard panel, setting up global infrastructure tracking dashboards, administrative tools, and real-time operations interfaces.
   [LinkedIn Profile](https://www.linkedin.com/in/) | [GitHub Portfolio](https://github.com/)
